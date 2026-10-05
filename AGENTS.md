@@ -21,6 +21,7 @@ OpenAPI spec are **not implemented yet**. Only `GET /syn` (health check) exists.
 | Framework | Spring Boot 4.1.1 | See "Spring Boot 4 migration notes" below |
 | Build | Gradle 9.7.1 (wrapper) | Always `./gradlew`, never a system `gradle` |
 | Persistence | Spring Data JPA + Hibernate | PostgreSQL driver |
+| Migrations | hand-run `db/migration/V1__init.sql` | Flyway naming only — Flyway is *not* a dependency, see "Schema ownership" |
 | Security | Spring Security (servlet stack) | Stateless, JWT bearer only |
 | Tokens | jjwt 0.12.6 (`jjwt-api` + runtime impl) | API/impl split is intentional |
 | Crypto | Argon2 via Spring Security | BouncyCastle `bcprov-jdk18on` runtime dep |
@@ -60,19 +61,37 @@ src/main/java/com/techindna/template/
   security/jwt/JwtAuthenticationFilter.java
   config/AsyncConfig.java              @EnableAsync + `mailExecutor` ThreadPoolTaskExecutor
   controller/                         HTTP layer only
+  entity/User.java                    domain record — no JPA, no id/timestamp generation, no password
+  entity/enums/UserRole.java          user_role labels (ADMIN/CUSTOMER) + lowercase wire values
+  entity/enums/UserStatus.java        user_status labels (ACTIVE/INACTIVE/LOCKED) + wire values
+  repository/model/JUser.java          JPA model for template_app."user" (see docs/cdm.canvas)
   entity/email/EmailDetails.java       mail envelope (recipient, subject, body, variables)
   service/mail/EmailService.java       interface
   service/mail/EmailSenderService.java @Async("mailExecutor") plain-text body + send
   exception/ErrorBody.java            shared error envelope + static writer
 src/main/resources/application.properties
+src/main/resources/db/migration/V1__init.sql   hand-run DDL — the source of truth for the schema
 docs/api/api.yaml                     OpenAPI contract — keep in sync with code
 docs/cdm.canvas                       Obsidian canvas: user table data model
 ```
 
+## Schema ownership
+
+`src/main/resources/db/migration/V1__init.sql` follows Flyway naming but **Flyway is not a
+dependency** — apply it by hand with `psql`, and treat it as the authoritative DDL whenever
+`docs/cdm.canvas` and the entities disagree.
+
+The schema name `template_app` is hardcoded in two places that must be changed together:
+`V1__init.sql` (line 1, and the `template_app.` prefixes on the enum types) and
+`@Table(schema = "template_app")` in `repository/model/JUser.java`. Postgres cannot read env vars
+from SQL; making it configurable means either psql variables (`\getenv app_schema APP_SCHEMA` plus
+`:"app_schema"` identifier quoting, needs psql 14+) or adding Flyway placeholders — in which case
+`JUser` still needs `@Table(schema = "${app.schema}")` and `hibernate.default_schema`.
+
 Proposed package additions (keep controllers thin — see conventions):
 
-- `entity/` — JPA entities (start from the `user` table in `docs/cdm.canvas`)
-- `repository/` — Spring Data repositories
+- `repository/` — Spring Data repositories, each extending
+  `JpaRepository<JUser, UUID>`
 - `service/` — transactions and business rules
 - `dto/` — request/response records mirroring `components/schemas` in the OpenAPI file
 - `security/` — extend; add `jwt/` subpackage pieces (blacklist, verification tokens) there
@@ -128,9 +147,24 @@ propagate to the caller**; a throw on that executor only reaches an
 
 ## Conventions
 
+**Domain model vs persistence model (DDD).** The project keeps the two apart:
+
+- `entity/` is the **domain**: attributes and behavior only. No `jakarta.persistence` imports, no
+  `@Id` generation, no timestamp stamping, no `open session in view` assumptions. `entity.User` is
+  a record what business rules talk about; it deliberately has no `password` field, so nothing
+  outside the persistence layer can leak a hash into a DTO.
+- `repository/model/` is the **persistence model**: JPA-annotated classes mapped to the tables in
+  `docs/cdm.canvas`. Naming: `JUser` for `entity.User` (so imports never collide). It owns
+  `@GeneratedValue` ids, `@CreationTimestamp`/`@UpdateTimestamp` stamping, `@Column` mappings, and
+  the `@JdbcTypeCode(SqlTypes.NAMED_ENUM)` enum columns.
+- `repository/` holds the Spring Data interfaces. They speak `JUser`, never `entity.User`.
+- The translation between the two lives in the **service** layer (a mapper/converter component);
+  controllers and DTOs never see `JUser`. This keeps schema changes from leaking into the domain
+  and the API.
+
 **Layering.** `controller` → `service` → `repository`. Controllers do no business logic and no
-JPA access; services own `@Transactional` boundaries; repositories own queries. Return DTOs, never
-entities, so persistence changes do not leak into the API.
+JPA access; services own `@Transactional` boundaries and do domain↔model mapping; repositories own
+queries. Return DTOs, never entities or `JUser`, so persistence changes do not leak into the API.
 
 **DTOs are `record`s**, validated with `jakarta.validation` annotations that mirror the
 `components/schemas` constraints in `docs/api/api.yaml` (lengths, patterns, `required`). Use
