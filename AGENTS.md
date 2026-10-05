@@ -24,6 +24,7 @@ OpenAPI spec are **not implemented yet**. Only `GET /syn` (health check) exists.
 | Security | Spring Security (servlet stack) | Stateless, JWT bearer only |
 | Tokens | jjwt 0.12.6 (`jjwt-api` + runtime impl) | API/impl split is intentional |
 | Crypto | Argon2 via Spring Security | BouncyCastle `bcprov-jdk18on` runtime dep |
+| Mail | `spring-boot-starter-mail` | Gmail SMTP; plain-text bodies, no template engine |
 | Docs | OpenAPI 3.0.3 hand-written YAML | No springdoc dependency; keep YAML authoritative |
 | Planning | Obsidian vault in `docs/` | `.canvas` files = data model / design |
 
@@ -56,7 +57,11 @@ src/main/java/com/techindna/template/
   security/SecurityConfig.java         filter chain, password encoder, 401/403 handlers
   security/jwt/JwtTokenProvider.java   sign/verify, claims contract
   security/jwt/JwtAuthenticationFilter.java
+  config/AsyncConfig.java              @EnableAsync + `mailExecutor` ThreadPoolTaskExecutor
   controller/                         HTTP layer only
+  entity/email/EmailDetails.java       mail envelope (recipient, subject, body, variables)
+  service/mail/EmailService.java       interface
+  service/mail/EmailSenderService.java @Async("mailExecutor") plain-text body + send
   exception/ErrorBody.java            shared error envelope + static writer
 src/main/resources/application.properties
 docs/api/api.yaml                     OpenAPI contract — keep in sync with code
@@ -71,6 +76,27 @@ Proposed package additions (keep controllers thin — see conventions):
 - `dto/` — request/response records mirroring `components/schemas` in the OpenAPI file
 - `security/` — extend; add `jwt/` subpackage pieces (blacklist, verification tokens) there
 
+## Mail
+
+SMTP host/port/TLS live in `application.properties`; **credentials (`spring.mail.username`,
+`spring.mail.password`) belong in `.env` only** and are never committed. Gmail requires an
+App Password, not the account password.
+
+Send via `EmailService`, never by calling `JavaMailSender` directly:
+
+```java
+emailService.sendMail(new EmailDetails(recipient, "Subject", "Verify your account", variables));
+```
+
+`body` is the intro line of a **plain-text** message; each entry in `variables` is appended as a
+`Key: value` line. Blank and null variables are skipped, and a message with neither body nor
+variables falls back to the subject. There is no template engine and no HTML mail — bodies are
+built in `EmailSenderService.buildBody`.
+
+`sendMail` is `@Async("mailExecutor")`, so it returns immediately and **send failures cannot
+propagate to the caller**; a throw on that executor only reaches an
+`AsyncUncaughtExceptionHandler`. Log-and-continue callers must not assume delivery.
+
 ## Configuration and secrets
 
 - `.env` at the repo root is loaded as a properties file via
@@ -80,11 +106,20 @@ Proposed package additions (keep controllers thin — see conventions):
   code, tests, docs, or commit messages.** Read key *names* only when documenting configuration.
 - Required keys: `spring.datasource.url`, `spring.datasource.driver-class-name`, and
   `app.jwt.secret` — a Base64-encoded HMAC key (generate with `openssl rand -base64 48`).
-- Defaults live in `application.properties` (`app.jwt.expiration-ms=3600000`). Real values come from
+- Required for mail: `spring.mail.username` and `spring.mail.password`. Mail degrades rather
+  than failing the boot when they are absent — `sendMail` throws a `MailSendException` naming
+  the missing key.
+- Defaults live in `application.properties` (`app.jwt.expiration-ms=3600000`,
+  `spring.mail.host=smtp.gmail.com`). Real values come from
   `.env` or environment variables; the `application*.properties` files must stay secret-free so
   the build works in CI.
 - Tests must not depend on a developer's `.env`. Supply test properties via
-  `src/test/resources/application.properties` or `@SpringBootTest(properties = ...)`.
+  `src/test/resources/application-test.properties` plus `@ActiveProfiles("test")`, or
+  `@SpringBootTest(properties = ...)`.
+- **Never put `application.properties` in `src/test/resources`.** Test classes come first on the
+  classpath, so it shadows the main file and silently drops
+  `spring.config.import=optional:file:.env[.properties]` — the datasource then fails with
+  `'url' attribute is not specified`.
 
 ## Conventions
 
