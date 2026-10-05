@@ -25,6 +25,7 @@ OpenAPI spec are **not implemented yet**. Only `GET /syn` (health check) exists.
 | Tokens | jjwt 0.12.6 (`jjwt-api` + runtime impl) | API/impl split is intentional |
 | Crypto | Argon2 via Spring Security | BouncyCastle `bcprov-jdk18on` runtime dep |
 | Mail | `spring-boot-starter-mail` | Gmail SMTP; plain-text bodies, no template engine |
+| Redis | `spring-boot-starter-data-redis` | Lettuce, configured by `spring.data.redis.url` only; no code uses it yet |
 | Docs | OpenAPI 3.0.3 hand-written YAML | No springdoc dependency; keep YAML authoritative |
 | Planning | Obsidian vault in `docs/` | `.canvas` files = data model / design |
 
@@ -109,6 +110,10 @@ propagate to the caller**; a throw on that executor only reaches an
 - Required for mail: `spring.mail.username` and `spring.mail.password`. Mail degrades rather
   than failing the boot when they are absent — `sendMail` throws a `MailSendException` naming
   the missing key.
+- Required for Redis: `spring.data.redis.url` (`rediss://…` for TLS, e.g. Upstash). The
+  connection is lazy — booting without a reachable Redis is fine until something calls
+  `StringRedisTemplate`. Tests must override it with `redis://localhost:6379`; an **empty** value
+  is rejected by Boot 4.1 (`DataRedisUrlSyntaxException`).
 - Defaults live in `application.properties` (`app.jwt.expiration-ms=3600000`,
   `spring.mail.host=smtp.gmail.com`). Real values come from
   `.env` or environment variables; the `application*.properties` files must stay secret-free so
