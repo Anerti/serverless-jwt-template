@@ -1,0 +1,1157 @@
+openapi: 3.0.3
+info:
+  title: spring-boot-jwt-template — Users API
+  version: 0.1.0
+  description: CRUD endpoints for user management and JWT authentication.
+
+servers:
+  - url: http://localhost:8080
+
+paths:
+  # ──────────────── Health ────────────────
+  /syn:
+    get:
+      operationId: syn
+      summary: Health check
+      description: Returns syn-ack if the application is running.
+      tags: [Health]
+      security: []
+      responses:
+        '200':
+          description: Application is up
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: syn-ack
+
+  # ──────────────── Authentication ────────────────
+  /auth/register:
+    post:
+      operationId: register
+      summary: Register a new user account (pending verification)
+      description: Validates the registration data, saves the user with verified=false, generates a UUID verification token stored in Redis, and sends a verification link by email. The account is not active until verified via GET /auth/verification. The token expires after 15 minutes. Login is blocked until verification.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+      security: []
+      responses:
+        '202':
+          description: Validation passed, verification link sent by email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: An email has been sent to verify your account
+        '422':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 422
+                error: Unprocessable Entity
+                message: Password must be at least 8 characters
+                timestamp: 2026-07-20T15:00:00Z
+        '409':
+          description: Username or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 409
+                error: Conflict
+                message: Username is already taken
+                timestamp: 2026-07-20T15:00:00Z
+        '500':
+          description: Failed to send verification email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 500
+                error: Internal Server Error
+                message: Failed to send verification email
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/verification/{token}:
+    get:
+      operationId: verifyRegistration
+      summary: Verify email and activate the account
+      description: >-
+        Validates the UUID verification token against the pending user record and returns a
+        JWT token. Consumes tokens from all verification flows: registration (sets
+        verified=true), login, account unlock (sets status back to ACTIVE and resets the
+        failed-login counter), and email change (switches to the new pending address).
+        The token expires after 15 minutes.
+      tags: [Auth]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID verification token sent by email
+      security: []
+      responses:
+        '200':
+          description: Email verified, account activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyRegistrationResponse'
+        '401':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid or expired token
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Host 203.0.113.42 is banned from accessing this account
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Authenticate and request a verification link
+      description: >-
+        Validates credentials (username or email + password), records the client's host and
+        rejects banned hosts, generates a UUID verification token stored in Redis, and sends a
+        verification link by email. The token expires after 15 minutes. Complete login via
+        GET /auth/verification/{token}.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      security: []
+      responses:
+        '202':
+          description: Credentials validated, verification link sent by email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: A verification link has been sent to your email
+        '422':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                noIdentifier:
+                  summary: Neither username nor email provided
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: Username or email is required and cannot be blank
+                    timestamp: 2026-07-20T15:00:00Z
+                invalidEmail:
+                  summary: Email format invalid
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: Email not-an-email is not valid
+                    timestamp: 2026-07-20T15:00:00Z
+                invalidUsername:
+                  summary: Username format invalid
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: Username a is invalid
+                    timestamp: 2026-07-20T15:00:00Z
+                blankPassword:
+                  summary: Password missing or blank
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: password is required and cannot be blank
+                    timestamp: 2026-07-20T15:00:00Z
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                wrongPassword:
+                  summary: Unknown user or wrong password
+                  value:
+                    status: 401
+                    error: Unauthorized
+                    message: Invalid credentials. 4 attempt(s) left
+                    timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                accountLocked:
+                  summary: Account locked due to too many failed attempts
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Account locked
+                    timestamp: 2026-07-20T15:00:00Z
+                accountNotVerified:
+                  summary: Account not yet verified
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Account has not been verified
+                    timestamp: 2026-07-20T15:00:00Z
+                hostBanned:
+                  summary: Client's host is banned from this account
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Host 203.0.113.42 is banned from accessing this account
+                    timestamp: 2026-07-20T15:00:00Z
+
+  /auth/resend-link:
+    post:
+      operationId: resendVerificationLink
+      summary: Resend verification email
+      description: >-
+        Generates a new UUID verification token and sends a verification email
+        for the given flow. The token expires after 15 minutes. Complete the
+        flow via GET /auth/verification/{token}.
+      tags: [Auth]
+      parameters:
+        - name: email
+          in: query
+          required: true
+          schema:
+            type: string
+            format: email
+            maxLength: 100
+          description: Email address of the account
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [login, unlock-account, change-email, change-password]
+          description: >-
+            Which verification flow to resend. When omitted, defaults to
+            registration verification.
+      security: []
+      responses:
+        '202':
+          description: Verification email regenerated and sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              examples:
+                registration:
+                  summary: Registration verification resent
+                  value:
+                    message: A verification link has been sent to your email
+                login:
+                  summary: Login verification resent
+                  value:
+                    message: A verification link has been sent to your email
+                unlockAccount:
+                  summary: Unlock-account link resent
+                  value:
+                    message: A verification link has been sent to your email to unlock your account
+                changeEmail:
+                  summary: Change-email confirmation resent
+                  value:
+                    message: A verification link has been sent to your new email address
+                changePassword:
+                  summary: Change-password notification resent
+                  value:
+                    message: A verification link has been sent to your email
+        '422':
+          description: Email format validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                emailInvalid:
+                  summary: Email format invalid
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: Email must be a valid email address
+                    timestamp: 2026-07-20T15:00:00Z
+                invalidFlow:
+                  summary: Unknown flow value
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: Unknown flow value
+                    timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: No pending verification found for this email and flow
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: No pending verification found for this email
+                timestamp: 2026-07-20T15:00:00Z
+        '500':
+          description: Failed to send verification email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 500
+                error: Internal Server Error
+                message: Failed to send verification email
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      summary: Change the authenticated user's password
+      description: Validates the caller's current credentials (username or email + current password), confirms the new password matches the confirmation field, and changes the password immediately — no verification link or click is required. An email notification is sent to the account's registered address informing the user that the password was changed, including the client IP, user agent, city, country, and timestamp of the change. This endpoint requires authentication.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangePasswordInput'
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: Password changed successfully
+        '401':
+          description: Missing or invalid authentication token or wrong credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid credentials
+                timestamp: 2026-07-20T15:00:00Z
+        '422':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                passwordTooShort:
+                  summary: Password too short
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: New password must be at least 12 characters
+                    timestamp: 2026-07-20T15:00:00Z
+                passwordsDoNotMatch:
+                  summary: Passwords do not match
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: New password and confirmation do not match
+                    timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Account not verified or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Account has not been verified
+                timestamp: 2026-07-20T15:00:00Z
+        '500':
+          description: Failed to send password-change notification email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 500
+                error: Internal Server Error
+                message: Failed to send password-change notification email
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/change-email:
+    post:
+      operationId: changeEmail
+      summary: Request an email change
+      description: Validates the caller's current credentials (username or email + password), generates a UUID verification token stored in Redis, and sends a confirmation link by email to the new address. The token expires after 15 minutes. Complete the email change via GET /auth/verification/{token}. The old email remains in use until the new address is verified. This endpoint requires authentication.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeEmailInput'
+      responses:
+        '202':
+          description: Credentials validated, verification link sent to the new email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: A verification link has been sent to your new email address
+        '401':
+          description: Missing or invalid authentication token or wrong credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid credentials
+                timestamp: 2026-07-20T15:00:00Z
+        '422':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 422
+                error: Unprocessable Entity
+                message: New email must be a valid email address
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Account not verified or business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Account has not been verified
+                timestamp: 2026-07-20T15:00:00Z
+        '409':
+          description: The new email is already in use by another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 409
+                error: Conflict
+                message: This email address is already in use
+                timestamp: 2026-07-20T15:00:00Z
+        '500':
+          description: Failed to send verification email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 500
+                error: Internal Server Error
+                message: Failed to send verification email
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/unlock:
+    post:
+      operationId: unlockAccount
+      summary: Request to unlock a locked user account
+      description: >-
+        Public recovery endpoint. Submit the email of a LOCKED account to receive an
+        unlock link by email; complete it via GET /auth/verification/{token}. Returns
+        403 if the account is not found or not locked, and 422 if the email is invalid.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnlockAccountInput'
+      security: []
+      responses:
+        '202':
+          description: Verification link sent by email to unlock the account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: A verification link has been sent to your email to unlock your account
+        '403':
+          description: >-
+            Request rejected. Returned when the account is not found or not locked
+            (same message in both cases, so account existence is not revealed), or when
+            the requesting host is banned from accessing the account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                accountNotLocked:
+                  summary: Account not found or not locked
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Account not locked
+                    timestamp: 2026-07-20T15:00:00Z
+                hostBanned:
+                  summary: Requesting host is banned
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Host <ip> is banned from accessing this account
+                    timestamp: 2026-07-20T15:00:00Z
+        '422':
+          description: Validation failure on the email field
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                emailRequired:
+                  summary: Email missing or blank
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: email is required and cannot be blank
+                    timestamp: 2026-07-20T15:00:00Z
+                emailTooLong:
+                  summary: Email exceeds 100 characters
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: email must not exceed 100 characters
+                    timestamp: 2026-07-20T15:00:00Z
+                emailInvalid:
+                  summary: Email format invalid
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: Email <value> is not valid
+                    timestamp: 2026-07-20T15:00:00Z
+        '500':
+          description: Failed to send verification email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 500
+                error: Internal Server Error
+                message: Failed to send verification email
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Log out and revoke the current token
+      description: >-
+        Revokes the caller's current JWT so it can no longer be used for authentication.
+        The token is added to a Redis blacklist with a TTL equal to the token's remaining
+        lifetime, so the revocation lapses automatically when the token would have expired.
+        The JwtAuthenticationFilter rejects blacklisted tokens. After a successful response
+        the client should discard the token. Requires authentication.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Token revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: Logged out successfully
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Missing or invalid authentication token
+                timestamp: 2026-07-20T15:00:00Z
+
+  # ──────────────── Users CRUD ────────────────
+  /users:
+    get:
+      operationId: listUsers
+      summary: List users (paginated, admin only)
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          description: Filter by username (partial match)
+        - name: firstName
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          description: Filter by first name (partial match)
+        - name: lastName
+          in: query
+          required: false
+          schema:
+            type: string
+            maxLength: 100
+          description: Filter by last name (partial match)
+        - name: email
+          in: query
+          required: false
+          schema:
+            type: string
+            format: email
+            maxLength: 100
+          description: Filter by email (partial match)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+          description: Page number (1-indexed)
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Page size
+      responses:
+        '200':
+          description: Paginated user list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/Meta'
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Missing or invalid authentication token
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Insufficient permissions (admin role required)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Admin role is required to access this resource
+                timestamp: 2026-07-20T15:00:00Z
+        '422':
+          description: Business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 422
+                error: Unprocessable Entity
+                message: Page size must be between 1 and 100
+                timestamp: 2026-07-20T15:00:00Z
+
+  /users/{userId}:
+    get:
+      operationId: getUser
+      summary: Get a user by ID
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Missing or invalid authentication token
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Insufficient privileges to access this resource
+                timestamp: 2026-07-20T15:00:00Z
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 404
+                error: Not Found
+                message: User not found
+                timestamp: 2026-07-20T15:00:00Z
+
+    patch:
+      operationId: updateUser
+      summary: Update a user
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserInput'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Missing or invalid authentication token
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Insufficient privileges or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Insufficient privileges to access this resource
+                timestamp: 2026-07-20T15:00:00Z
+        '409':
+          description: Username already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 409
+                error: Conflict
+                message: Cannot use this username
+                timestamp: 2026-07-20T15:00:00Z
+        '422':
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 422
+                error: Unprocessable Entity
+                message: Username must start with a letter and contain only letters, digits, underscores, and hyphens
+                timestamp: 2026-07-20T15:00:00Z
+
+    delete:
+      operationId: deleteUser
+      summary: Delete a user
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User deleted
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 404
+                error: Not Found
+                message: User not found
+                timestamp: 2026-07-20T15:00:00Z
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserRole:
+      type: string
+      enum: [admin, customer]
+
+    UserStatus:
+      type: string
+      enum: [active, inactive, locked]
+      description: Account status
+
+    # ── Auth ──
+    RegisterInput:
+      type: object
+      required: [username, password, confirmPassword, firstName, lastName, email]
+      properties:
+        username:
+          type: string
+          maxLength: 50
+        password:
+          type: string
+          minLength: 12
+          maxLength: 255
+          writeOnly: true
+        confirmPassword:
+          type: string
+          writeOnly: true
+          description: Must match password
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 100
+      example:
+        username: jdoe
+        password: s3cur3P@ssw0rd!
+        confirmPassword: s3cur3P@ssw0rd!
+        firstName: John
+        lastName: Doe
+        email: jdoe@example.com
+
+    LoginInput:
+      type: object
+      required: [password]
+      properties:
+        username:
+          type: string
+          description: Username to log in with
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Email to log in with
+        password:
+          type: string
+          writeOnly: true
+      description: Provide either username or email (at least one required)
+      example:
+        username: jdoe
+        password: s3cur3P@ss
+
+    LoginResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: JWT bearer token
+        user:
+          $ref: '#/components/schemas/User'
+      example:
+        token: eyJhbG...AwfQ...
+        user:
+          id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          username: jdoe
+          firstName: John
+          lastName: Doe
+          email: jdoe@example.com
+          role: customer
+          userStatus: active
+          createdAt: 2026-07-20T14:00:00Z
+          updatedAt: null
+
+    VerifyRegistrationResponse:
+      type: object
+      required: [token, user]
+      properties:
+        token:
+          type: string
+          description: JWT bearer token
+        user:
+          $ref: '#/components/schemas/User'
+      example:
+        token: eyJhbG...AwfQ...
+        user:
+          id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+          username: jdoe
+          firstName: John
+          lastName: Doe
+          email: jdoe@example.com
+          role: customer
+          userStatus: active
+          createdAt: 2026-07-20T14:00:00Z
+          updatedAt: null
+
+    # ── Read model ──
+    User:
+      type: object
+      required: [id, username, firstName, lastName, email, role, userStatus, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+          maxLength: 50
+        firstName:
+          type: string
+          maxLength: 100
+        lastName:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 100
+        role:
+          $ref: '#/components/schemas/UserRole'
+        userStatus:
+          $ref: '#/components/schemas/UserStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+      example:
+        id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+        username: jdoe
+        firstName: John
+        lastName: Doe
+        email: jdoe@example.com
+        role: customer
+        userStatus: active
+        createdAt: 2026-07-20T14:00:00Z
+        updatedAt: null
+
+    # ── Update input ──
+    UpdateUserInput:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9_-]{2,}$"
+          description: Letters, digits, underscores, and hyphens only
+        firstName:
+          type: string
+          maxLength: 100
+          pattern: "^[A-Z][a-zA-Z-'éèê ]{1,}$"
+          description: Must start with a capital letter
+        lastName:
+          type: string
+          maxLength: 100
+          pattern: "^[A-Z][a-zA-Z-'éèê ]{1,}$"
+          description: Must start with a capital letter
+      example:
+        firstName: Jonathan
+        lastName: Doe
+
+    # ── Change password input ──
+    ChangePasswordInput:
+      type: object
+      required: [oldPassword, newPassword, confirmNewPassword]
+      properties:
+        oldPassword:
+          type: string
+          writeOnly: true
+          description: Current password for authentication
+        newPassword:
+          type: string
+          minLength: 12
+          maxLength: 255
+          writeOnly: true
+          description: New password to set
+        confirmNewPassword:
+          type: string
+          writeOnly: true
+          description: Must match newPassword
+      example:
+        oldPassword: oldP@ssw0rd!
+        newPassword: n3w$ecur3P@ss!
+        confirmNewPassword: n3w$ecur3P@ss!
+
+    # ── Change email input ──
+    ChangeEmailInput:
+      type: object
+      required: [newEmail, password]
+      properties:
+        newEmail:
+          type: string
+          format: email
+          maxLength: 100
+          description: The new email address to switch to
+        password:
+          type: string
+          writeOnly: true
+          description: Current password for authentication
+      example:
+        newEmail: newemail@example.com
+        password: s3cur3P@ss
+
+    # ── Unlock account input ──
+    UnlockAccountInput:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Email of the locked account to unlock
+      example:
+        email: lockeduser@example.com
+
+    # ── Simple message body ──
+    MessageBody:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          description: Human-readable message
+      example:
+        message: A verification link has been sent to your email
+
+    # ── Shared error body ──
+    ErrorBody:
+      type: object
+      required: [status, error, message, timestamp]
+      properties:
+        status:
+          type: integer
+          description: HTTP status code
+        error:
+          type: string
+          description: Short error type / code
+        message:
+          type: string
+          description: Human-readable error description
+        timestamp:
+          type: string
+          format: date-time
+          description: When the error occurred
+
+    Meta:
+      type: object
+      required: [page, size, total]
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed)
+        size:
+          type: integer
+          description: Number of items per page
+        total:
+          type: integer
+          description: Total number of items across all pages
+      example:
+        page: 1
+        size: 20
+        total: 1
