@@ -4,228 +4,168 @@ Guidance for AI coding agents (and humans) working in this repository.
 
 ## What this project is
 
-A Spring Boot **JWT authentication template** intended to be copied as the starting point for
-stateless REST services. It ships the security plumbing (JWT issuance/validation, stateless
-filter chain, Argon2 password encoding, uniform JSON error bodies) plus an OpenAPI contract in
-`docs/api/api.yaml` describing the full user-management API to be built on top of it.
+This repository is a Spring Boot 4.1.1 JWT template for stateless REST services. It already has a working security foundation and a first registration flow, and it is intended to be extended into a full user-management API.
 
-**Current state:** the security skeleton is done; the `/auth/*` and `/users` endpoints from the
-OpenAPI spec are **not implemented yet**. Only `GET /syn` (health check) exists. Treat
-`docs/api/api.yaml` as the source of truth for what to build, not as a description of existing code.
+The project is not a blank template: the code already includes JWT validation, password hashing, Redis-backed verification-token storage, async mail sending, and an initial `/auth/register` endpoint. Treat the source tree as the truth for what exists today, while using `docs/api/api.yaml` as the contract for what is still being implemented.
 
-## Stack — do not drift
+## Current implementation status
 
-| Concern | Choice | Notes |
-| --- | --- | --- |
-| Language | Java 25 | Enforced via Gradle toolchain, not `sourceCompatibility` |
-| Framework | Spring Boot 4.1.1 | See "Spring Boot 4 migration notes" below |
-| Build | Gradle 9.7.1 (wrapper) | Always `./gradlew`, never a system `gradle` |
-| Persistence | Spring Data JPA + Hibernate | PostgreSQL driver |
-| Migrations | hand-run `db/migration/V1__init.sql` | Flyway naming only — Flyway is *not* a dependency, see "Schema ownership" |
-| Security | Spring Security (servlet stack) | Stateless, JWT bearer only |
-| Tokens | jjwt 0.12.6 (`jjwt-api` + runtime impl) | API/impl split is intentional |
-| Crypto | Argon2 via Spring Security | BouncyCastle `bcprov-jdk18on` runtime dep |
-| Mail | `spring-boot-starter-mail` | Gmail SMTP; plain-text bodies, no template engine |
-| Redis | `spring-boot-starter-data-redis` | Lettuce, configured by `spring.data.redis.url` only; no code uses it yet |
-| Docs | OpenAPI 3.0.3 hand-written YAML | No springdoc dependency; keep YAML authoritative |
-| Planning | Obsidian vault in `docs/` | `.canvas` files = data model / design |
+Implemented today:
 
-Do not introduce a second HTTP stack (WebFlux), a second ORM, a second auth mechanism (sessions,
-form login, OAuth2 clients), or a build tool other than Gradle. If a feature seems to require one,
-that is a signal to re-scope, not to add a dependency.
+- `GET /syn` health check
+- Stateless Spring Security setup with JWT bearer authentication
+- JWT signing/verification via `JwtTokenProvider`
+- `JwtAuthenticationFilter` that authenticates a valid bearer token and leaves malformed/expired tokens unauthenticated
+- Argon2 password hashing via `Argon2PasswordEncoder`
+- `ErrorBody` JSON envelope for consistent auth and validation errors
+- Async email sending through `EmailSenderService`
+- Redis-backed verification-token generation via `VerificationTokenService`
+- `POST /auth/register` endpoint and registration service flow
+- `User` domain model + JPA persistence model + repository support
 
-## Spring Boot 4 migration notes (read before writing imports)
+Not yet implemented or still spec-driven:
 
-Boot 4 renamed starters and moved Jackson. Old Boot 3 code will not compile here:
+- login and verification flow (`/auth/login`, `/auth/verification/{token}`)
+- logout/token revocation
+- user CRUD (`/users`)
+- remaining auth flows such as resend/unlock/change-password/change-email
+- admin/user-role enforcement beyond the base filter chain
 
-- `spring-boot-starter-web` → **`spring-boot-starter-webmvc`**
-- `spring-boot-starter-test` → **`spring-boot-starter-webmvc-test`** (plus other split starters)
-- `spring-boot-starter-test-security` → **`spring-boot-starter-security-test`**
-- Jackson 3: `com.fasterxml.jackson.databind.ObjectMapper` → **`tools.jackson.databind.ObjectMapper`**
-  (see `src/main/java/com/techindna/template/exception/ErrorBody.java`)
-- Servlet/Jakarta: `jakarta.servlet.*` (unchanged from Boot 3)
-- Deprecate-and-remove sweep: prefer the exact artifact names already in `build.gradle`
+The safest default is: do not assume an endpoint exists unless it is present in code, and do not treat the OpenAPI file as a changelog of completed features.
 
-When copying snippets from Boot 3 tutorials or older LLM output, check every import against the
-dependency list above before using them.
+## Stack and constraints
 
-## Layout
+Do not drift from the project stack:
 
-```
-build.gradle                  deps, Java toolchain, JUnit platform
-settings.gradle               rootProject.name = 'template' (Gradle module name != artifact name)
+- Language: Java 25 via the Gradle toolchain
+- Framework: Spring Boot 4.1.1
+- Build: Gradle 9.7.1 with the wrapper (`./gradlew` only)
+- Security: Spring Security servlet stack, JWT bearer auth, stateless sessions
+- Persistence: Spring Data JPA + Hibernate + PostgreSQL
+- Mail: Spring Mail, plain-text email bodies only
+- Redis: Spring Data Redis with `StringRedisTemplate` for verification tokens
+- Docs: OpenAPI 3.0.3 YAML in `docs/api/api.yaml`
+- No second HTTP stack, no second ORM, no form-login/session auth, no extra build tool
+
+When copying code from older tutorials or Boot 3 examples, check imports and dependency names before adding them. Spring Boot 4 changed starters and Jackson packages.
+
+## Repository layout
+
+```text
+build.gradle                     Gradle config, Java 25 toolchain, test setup
+settings.gradle                  project metadata
 src/main/java/com/techindna/template/
   JwtServerlessTemplateApplication.java
-  security/SecurityConfig.java         filter chain, password encoder, 401/403 handlers
-  security/jwt/JwtTokenProvider.java   sign/verify, claims contract
-  security/jwt/JwtAuthenticationFilter.java
-  config/AsyncConfig.java              @EnableAsync + `mailExecutor` ThreadPoolTaskExecutor
-  controller/                         HTTP layer only
-  entity/User.java                    domain record — no JPA, no id/timestamp generation, no password
-  entity/enums/UserRole.java          user_role labels (ADMIN/CUSTOMER) + lowercase wire values
-  entity/enums/UserStatus.java        user_status labels (ACTIVE/INACTIVE/LOCKED) + wire values
-  repository/model/JUser.java          JPA model for template_app."user" (see docs/cdm.canvas)
-  entity/email/EmailDetails.java       mail envelope (recipient, subject, body, variables)
-  service/mail/EmailService.java       interface
-  service/mail/EmailSenderService.java @Async("mailExecutor") plain-text body + send
-  exception/ErrorBody.java            shared error envelope + static writer
-src/main/resources/application.properties
-src/main/resources/db/migration/V1__init.sql   hand-run DDL — the source of truth for the schema
-docs/api/api.yaml                     OpenAPI contract — keep in sync with code
-docs/cdm.canvas                       Obsidian canvas: user table data model
+  config/AsyncConfig.java         @EnableAsync + mailExecutor
+  controller/                     HTTP layer only
+  dto/                           request/response records
+  entity/                        domain model classes
+  exception/                     ErrorBody + custom HTTP exceptions
+  repository/                    Spring Data repositories
+  repository/model/              JPA model classes such as JUser
+  security/                      SecurityConfig + JWT pieces
+  service/                       business logic and mappers
+  validator/                     request validation helpers
+src/main/resources/
+  application.properties         default config, no secrets
+  db/migration/V1__init.sql       schema source of truth for local/Postgres setup
+src/test/java/                   tests, including container-backed smoke tests
+src/test/resources/
+  application-test.properties    test-time config; do not shadow main application.properties
+docs/api/api.yaml               OpenAPI contract
+docs/cdm.canvas                 Obsidian data-model canvas
+.env, .env.test                  local secrets, git-ignored; never commit
 ```
 
-## Schema ownership
-
-`src/main/resources/db/migration/V1__init.sql` follows Flyway naming but **Flyway is not a
-dependency** — apply it by hand with `psql`, and treat it as the authoritative DDL whenever
-`docs/cdm.canvas` and the entities disagree.
-
-The schema name `template_app` is hardcoded in two places that must be changed together:
-`V1__init.sql` (line 1, and the `template_app.` prefixes on the enum types) and
-`@Table(schema = "template_app")` in `repository/model/JUser.java`. Postgres cannot read env vars
-from SQL; making it configurable means either psql variables (`\getenv app_schema APP_SCHEMA` plus
-`:"app_schema"` identifier quoting, needs psql 14+) or adding Flyway placeholders — in which case
-`JUser` still needs `@Table(schema = "${app.schema}")` and `hibernate.default_schema`.
-
-Proposed package additions (keep controllers thin — see conventions):
-
-- `repository/` — Spring Data repositories, each extending
-  `JpaRepository<JUser, UUID>`
-- `service/` — transactions and business rules
-- `dto/` — request/response records mirroring `components/schemas` in the OpenAPI file
-- `security/` — extend; add `jwt/` subpackage pieces (blacklist, verification tokens) there
-
-## Mail
-
-SMTP host/port/TLS live in `application.properties`; **credentials (`spring.mail.username`,
-`spring.mail.password`) belong in `.env` only** and are never committed. Gmail requires an
-App Password, not the account password.
-
-Send via `EmailService`, never by calling `JavaMailSender` directly:
-
-```java
-emailService.sendMail(new EmailDetails(recipient, "Subject", "Verify your account", variables));
-```
-
-`body` is the intro line of a **plain-text** message; each entry in `variables` is appended as a
-`Key: value` line. Blank and null variables are skipped, and a message with neither body nor
-variables falls back to the subject. There is no template engine and no HTML mail — bodies are
-built in `EmailSenderService.buildBody`.
-
-`sendMail` is `@Async("mailExecutor")`, so it returns immediately and **send failures cannot
-propagate to the caller**; a throw on that executor only reaches an
-`AsyncUncaughtExceptionHandler`. Log-and-continue callers must not assume delivery.
-
-## Configuration and secrets
-
-- `.env` at the repo root is loaded as a properties file via
-  `spring.config.import=optional:file:.env[.properties]`. Keys use dotted Spring property names
-  (`spring.datasource.url`, `app.jwt.secret`), **not** SCREAMING_SNAKE_CASE.
-- `.env` is git-ignored. **Never commit it, never print its contents, never inline its values in
-  code, tests, docs, or commit messages.** Read key *names* only when documenting configuration.
-- Required keys: `spring.datasource.url`, `spring.datasource.driver-class-name`, and
-  `app.jwt.secret` — a Base64-encoded HMAC key (generate with `openssl rand -base64 48`).
-- Required for mail: `spring.mail.username` and `spring.mail.password`. Mail degrades rather
-  than failing the boot when they are absent — `sendMail` throws a `MailSendException` naming
-  the missing key.
-- Required for Redis: `spring.data.redis.url` (`rediss://…` for TLS, e.g. Upstash). The
-  connection is lazy — booting without a reachable Redis is fine until something calls
-  `StringRedisTemplate`. Tests use a Redis Testcontainer; an **empty** value is rejected by Boot
-  4.1 (`DataRedisUrlSyntaxException`).
-- Defaults live in `application.properties` (`app.jwt.expiration-ms=3600000`,
-  `spring.mail.host=smtp.gmail.com`). Real values come from
-  `.env` or environment variables; the `application*.properties` files must stay secret-free so
-  the build works in CI.
-- Tests must not depend on a developer's `.env`. Supply test properties via
-  `src/test/resources/application-test.properties` plus `@ActiveProfiles("test")`, or
-  `@SpringBootTest(properties = ...)`.
-- `application-test.properties` optionally imports the root `.env.test` for local test-only
-  overrides. `.env.test` is git-ignored; keep local credentials and machine-specific values there.
-- Full-context tests inherit `TestcontainersSupport` for PostgreSQL and Redis containers, so Docker
-  must be available when running those tests.
-- **Never put `application.properties` in `src/test/resources`.** Test classes come first on the
-  classpath, so it shadows the main file and silently drops
-  `spring.config.import=optional:file:.env[.properties]` — the datasource then fails with
-  `'url' attribute is not specified`.
+Ignore generated directories such as `build/` and `.gradle/` when making changes.
 
 ## Conventions
 
-**Domain model vs persistence model (DDD).** The project keeps the two apart:
+### Layering
 
-- `entity/` is the **domain**: attributes and behavior only. No `jakarta.persistence` imports, no
-  `@Id` generation, no timestamp stamping, no `open session in view` assumptions. `entity.User` is
-  a record what business rules talk about; it deliberately has no `password` field, so nothing
-  outside the persistence layer can leak a hash into a DTO.
-- `repository/model/` is the **persistence model**: JPA-annotated classes mapped to the tables in
-  `docs/cdm.canvas`. Naming: `JUser` for `entity.User` (so imports never collide). It owns
-  `@GeneratedValue` ids, `@CreationTimestamp`/`@UpdateTimestamp` stamping, `@Column` mappings, and
-  the `@JdbcTypeCode(SqlTypes.NAMED_ENUM)` enum columns.
-- `repository/` holds the Spring Data interfaces. They speak `JUser`, never `entity.User`.
-- The translation between the two lives in the **service** layer (a mapper/converter component);
-  controllers and DTOs never see `JUser`. This keeps schema changes from leaking into the domain
-  and the API.
+Keep the stack thin and explicit:
 
-**Layering.** `controller` → `service` → `repository`. Controllers do no business logic and no
-JPA access; services own `@Transactional` boundaries and do domain↔model mapping; repositories own
-queries. Return DTOs, never entities or `JUser`, so persistence changes do not leak into the API.
+- `controller` -> `service` -> `repository`
+- Controllers do not contain business logic or JPA code
+- Services own transaction boundaries and mapping logic
+- Repositories own persistence queries
 
-**DTOs are `record`s**, validated with `jakarta.validation` annotations that mirror the
-`components/schemas` constraints in `docs/api/api.yaml` (lengths, patterns, `required`). Use
-`@JsonProperty`-free naming — camelCase on the wire, snake_case in the DB via explicit
-`@Column`/`@Table` mappings.
+Return DTOs, not entities or JPA model objects, to the HTTP layer.
 
-**Errors.** Every error response is the `ErrorBody` envelope:
-`{status, error, message, timestamp}`. `error` is the uppercase HTTP reason phrase
-(`UNAUTHORIZED`, `UNPROCESSABLE ENTITY`). Use `ErrorBody.send(response, status, message)` from
-controllers/filters. Do not return bare strings, Spring's default error JSON, or ad-hoc maps.
-Status conventions come from the spec: 400/422 validation, 401 auth, 403 business-rule/permission,
-404 missing, 409 conflict, 202 accepted-with-side-effect, 204 delete.
+### Domain vs persistence model
 
-**Security.** Add endpoints to `SecurityConfig` explicitly — the chain denies by default
-(`anyRequest().authenticated()`), so a new public endpoint that is not listed in
-`permitAll()` will 401. Role checks go in the spec as `security:` on the operation; enforce with
-`@PreAuthorize("hasRole('ADMIN')")` (note: the filter prefixes `ROLE_`, and the wire value is
-lowercase `admin`/`customer`).
+The project intentionally keeps the domain and database models separate:
 
-**JWT contract.** Do not change these claim names without updating the spec and every consumer:
-- `sub` — user id
-- `role` — one of `admin`, `customer`
-- `ip_address` — client IP at issuance
-- `iat`, `exp` — set by `JwtTokenProvider` from `app.jwt.expiration-ms`
+- `entity/` contains domain classes and business-friendly types
+- `repository/model/` contains JPA-annotated persistence classes such as `JUser`
+- Translation stays in the service layer
 
-A malformed/expired token is currently swallowed in `JwtAuthenticationFilter` and the request
-continues unauthenticated, so protected endpoints answer 401 rather than 500. Preserve that
-behavior unless the spec says otherwise; add the Redis blacklist check the spec's `/auth/logout`
-describes in the same place.
+This keeps schema changes from leaking directly into the domain or API contract.
 
-**OpenAPI is a contract.** Any change to request shape, status code, or field name means editing
-`docs/api/api.yaml` in the same change. Read it before writing a controller, and update it before
-claiming an endpoint is done.
+### DTOs and validation
 
-## Build, run, test
+Prefer `record` DTOs and validation annotations to match the API contract.
 
-```bash
-export JAVA_HOME=/path/to/jdk-25        # required; gradlew will not find a JDK otherwise
-./gradlew build                         # compile + test
-./gradlew test                          # tests only (JUnit 5 via useJUnitPlatform)
-./gradlew bootRun                       # run on http://localhost:8080
-curl localhost:8080/syn                 # -> syn-ack
-./gradlew bootJar                       # build/libs/template-0.0.1-SNAPSHOT.jar
+Keep names camelCase on the wire and explicit DB mappings where needed.
+
+### Error responses
+
+Every error response should use the shared `ErrorBody` envelope:
+
+```json
+{
+  "status": 401,
+  "error": "UNAUTHORIZED",
+  "message": "Authentication required.",
+  "timestamp": "2026-01-01T12:00:00Z"
+}
 ```
 
-`contextLoads()` is the only test today. `@SpringBootTest` loads the full context, so it needs a
-working `app.jwt.secret` and datasource config — prefer a slice test
-(`@WebMvcTest`, `@DataJpaTest`) for new tests, and reserve `@SpringBootTest` for wiring checks.
+Do not return raw strings or Spring default error JSON when handling application errors.
 
-There is no formatter or linter plugin configured. Keep the existing style: 4-space indent, 100-col
-soft limit, Google-Java-Format-shaped imports, one class per file, no wildcard imports.
+### Security rules
 
-## Definition of done
+- Public endpoints must be explicitly allowed in `SecurityConfig`
+- The chain is deny-by-default (`anyRequest().authenticated()`)
+- JWT claims are the source of identity and authorization
+- Invalid or expired tokens should not crash the request; they should continue anonymously so the filter chain can respond with 401
 
-1. `./gradlew build` passes locally.
-2. New/changed endpoints are reflected in `docs/api/api.yaml` (schemas, status codes, examples).
-3. Errors use the `ErrorBody` envelope; new public endpoints are explicitly permitted in
-   `SecurityConfig`.
-4. No secrets in code, tests, docs, or committed files; `.env` untouched.
-5. Tests cover the new behavior — a controller test per endpoint at minimum.
+### OpenAPI contract
+
+`docs/api/api.yaml` is the API contract. If you change a request shape, status code, field name, or endpoint, update the YAML in the same change.
+
+### Secrets and config
+
+- `.env` lives at the repo root and is loaded through `spring.config.import=optional:file:.env[.properties]`
+- Keys use dotted Spring property names such as `spring.datasource.url`, `app.jwt.secret`, and `app.base-url`
+- `.env` and `.env.test` are git-ignored; never commit them or print their contents
+- Keep `application.properties` secret-free and only use it for defaults
+- Do not add secrets to code, tests, docs, or commit messages
+
+## Implementation notes from this repo
+
+- `SecurityConfig` is already set up for stateless JWT auth and permits `/syn` and `/auth/register`
+- `RegistrationService` creates a user, stores it, and sends a verification email using a Redis token TTL of 15 minutes
+- `EmailSenderService` builds plain-text bodies from `EmailDetails` and appends key/value variables as lines
+- `VerificationTokenService` stores verification tokens in Redis under `auth:verification:<token>`
+- `UserRepository` exposes existence checks for username/email, and the service handles duplicate-key conflicts
+
+## Build and test commands
+
+```bash
+./gradlew test
+./gradlew build
+./gradlew bootRun
+```
+
+Use the Gradle wrapper, not a system `gradle` install. If you add tests, prefer small, focused tests over broad Spring Boot context loading unless the change truly requires it.
+
+## Definition of done for changes
+
+1. The code compiles and the relevant tests pass.
+2. Any user-visible API changes are reflected in `docs/api/api.yaml`.
+3. Error handling uses `ErrorBody` and intended HTTP statuses.
+4. Public endpoints are explicitly permitted in `SecurityConfig`.
+5. No secrets are committed or embedded in code, tests, or docs.
+
+This project evolves by extending the current working skeleton rather than rewriting it from scratch.
