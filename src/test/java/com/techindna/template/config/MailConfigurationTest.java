@@ -16,9 +16,6 @@ class MailConfigurationTest extends TestcontainersSupport {
     @Autowired
     private JavaMailSender javaMailSender;
 
-    @Autowired
-    private AsyncConfig asyncConfig;
-
     @Test
     void javaMailSenderTargetsConfiguredSmtpHost() {
         JavaMailSenderImpl sender = (JavaMailSenderImpl) javaMailSender;
@@ -31,10 +28,5 @@ class MailConfigurationTest extends TestcontainersSupport {
         assertThat(props.getProperty("mail.smtp.starttls.enable")).isEqualTo("true");
 
         assertThat(Session.getInstance(props)).isNotNull();
-    }
-
-    @Test
-    void mailExecutorBeanIsAvailable() {
-        assertThat(asyncConfig.mailExecutor()).isNotNull();
     }
 }

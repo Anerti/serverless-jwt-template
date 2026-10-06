@@ -1,6 +1,8 @@
 package com.techindna.template.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -26,6 +28,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mail.MailSendException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.test.context.TestConstructor.AutowireMode;
@@ -250,6 +253,20 @@ class AuthRegistrationControllerTest extends TestcontainersSupport {
                         "Jane.Doe@Example.com"));
 
         assertConflict(response, "You cannot use this username");
+    }
+
+    @Test
+    void failedVerificationEmailReturnsServerErrorAndRollsBackRegistration() {
+        doThrow(new MailSendException("SMTP unavailable"))
+                .when(emailService)
+                .sendMail(any(EmailDetails.class));
+
+        ResponseEntity<String> response = registerError(validRequest());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody()).contains("Something went wrong");
+        assertThat(userRepository.count()).isZero();
+        assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
     }
 
     @Test

@@ -14,6 +14,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.mail.MailException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,22 +50,31 @@ public class RegistrationService {
             throw e;
         }
 
-        String token = verificationTokenService.createForUser(user.getId());
-
-        String verificationLink =
-                baseUrl.replaceAll("/+$", "") + "/auth/verification/" + token;
-        emailService.sendMail(
-                new EmailDetails(
-                        user.getEmail(),
-                        "Verify your account",
-                        "Use the following link to verify your account:",
-                        Map.of(
-                                "firstName", user.getFirstName(),
-                                "lastName", user.getLastName(),
-                                "username", user.getUsername(),
-                                "email", user.getEmail(),
-                                "verificationUrl", verificationLink)));
+        sendVerificationEmail(user);
 
         return new MessageResponse("An email has been sent to verify your account");
+    }
+
+    private void sendVerificationEmail(JUser user) {
+        String token = verificationTokenService.createForUser(user.getId());
+        String verificationLink =
+                baseUrl.replaceAll("/+$", "") + "/auth/verification/" + token;
+
+        try {
+            emailService.sendMail(
+                    new EmailDetails(
+                            user.getEmail(),
+                            "Verify your account",
+                            "Use the following link to verify your account:",
+                            Map.of(
+                                    "firstName", user.getFirstName(),
+                                    "lastName", user.getLastName(),
+                                    "username", user.getUsername(),
+                                    "email", user.getEmail(),
+                                    "verificationUrl", verificationLink)));
+        } catch (MailException e) {
+            verificationTokenService.delete(token);
+            throw e;
+        }
     }
 }

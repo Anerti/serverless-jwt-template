@@ -6,7 +6,7 @@ Guidance for AI coding agents (and humans) working in this repository.
 
 This repository is a Spring Boot 4.1.1 JWT template for stateless REST services. It already has a working security foundation and a first registration flow, and it is intended to be extended into a full user-management API.
 
-The project is not a blank template: the code already includes JWT validation, password hashing, Redis-backed verification-token storage, async mail sending, and an initial `/auth/register` endpoint. Treat the source tree as the truth for what exists today, while using `docs/api/api.yaml` as the contract for what is still being implemented.
+The project is not a blank template: the code already includes JWT validation, password hashing, Redis-backed verification-token storage, synchronous mail sending, and an initial `/auth/register` endpoint. Treat the source tree as the truth for what exists today, while using `docs/api/api.yaml` as the contract for what is still being implemented.
 
 ## Current implementation status
 
@@ -18,7 +18,7 @@ Implemented today:
 - `JwtAuthenticationFilter` that authenticates a valid bearer token and leaves malformed/expired tokens unauthenticated
 - Argon2 password hashing via `Argon2PasswordEncoder`
 - `ErrorBody` JSON envelope for consistent auth and validation errors
-- Async email sending through `EmailSenderService`
+- Synchronous email sending through `EmailSenderService`
 - Redis-backed verification-token generation via `VerificationTokenService`
 - `POST /auth/register` endpoint and registration service flow
 - `User` domain model + JPA persistence model + repository support
@@ -56,7 +56,6 @@ build.gradle                     Gradle config, Java 25 toolchain, test setup
 settings.gradle                  project metadata
 src/main/java/com/techindna/template/
   JwtServerlessTemplateApplication.java
-  config/AsyncConfig.java         @EnableAsync + mailExecutor
   controller/                     HTTP layer only
   dto/                           request/response records
   entity/                        domain model classes

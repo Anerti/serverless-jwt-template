@@ -24,4 +24,8 @@ public class VerificationTokenService {
                 .set(KEY_PREFIX + token, userId.toString(), TOKEN_TTL);
         return token;
     }
+
+    public void delete(String token) {
+        redisTemplate.delete(KEY_PREFIX + token);
+    }
 }
