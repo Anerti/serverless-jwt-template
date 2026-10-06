@@ -131,8 +131,8 @@ propagate to the caller**; a throw on that executor only reaches an
   the missing key.
 - Required for Redis: `spring.data.redis.url` (`rediss://…` for TLS, e.g. Upstash). The
   connection is lazy — booting without a reachable Redis is fine until something calls
-  `StringRedisTemplate`. Tests must override it with `redis://localhost:6379`; an **empty** value
-  is rejected by Boot 4.1 (`DataRedisUrlSyntaxException`).
+  `StringRedisTemplate`. Tests use a Redis Testcontainer; an **empty** value is rejected by Boot
+  4.1 (`DataRedisUrlSyntaxException`).
 - Defaults live in `application.properties` (`app.jwt.expiration-ms=3600000`,
   `spring.mail.host=smtp.gmail.com`). Real values come from
   `.env` or environment variables; the `application*.properties` files must stay secret-free so
@@ -140,6 +140,10 @@ propagate to the caller**; a throw on that executor only reaches an
 - Tests must not depend on a developer's `.env`. Supply test properties via
   `src/test/resources/application-test.properties` plus `@ActiveProfiles("test")`, or
   `@SpringBootTest(properties = ...)`.
+- `application-test.properties` optionally imports the root `.env.test` for local test-only
+  overrides. `.env.test` is git-ignored; keep local credentials and machine-specific values there.
+- Full-context tests inherit `TestcontainersSupport` for PostgreSQL and Redis containers, so Docker
+  must be available when running those tests.
 - **Never put `application.properties` in `src/test/resources`.** Test classes come first on the
   classpath, so it shadows the main file and silently drops
   `spring.config.import=optional:file:.env[.properties]` — the datasource then fails with
