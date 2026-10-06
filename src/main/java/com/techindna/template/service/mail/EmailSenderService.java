@@ -11,6 +11,7 @@ import org.springframework.mail.MailException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -29,6 +30,7 @@ public class EmailSenderService implements EmailService {
         this.sender = sender;
     }
 
+    @Async("mailExecutor")
     public void sendMail(EmailDetails details) {
         if (!StringUtils.hasText(sender)) {
             throw new MailSendException("Mail sender is not configured (spring.mail.username)");
