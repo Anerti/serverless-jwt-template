@@ -14,6 +14,7 @@ import com.techindna.template.entity.enums.UserRole;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
 import com.techindna.template.service.mail.EmailService;
+import java.time.Instant;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -108,7 +109,10 @@ class AuthRegistrationControllerTest extends TestcontainersSupport {
                 .containsEntry("email", EMAIL)
                 .containsEntry(
                         "verificationUrl",
-                        "http://localhost:8080/auth/verification/" + token);
+                        "http://localhost:8080/auth/verification/" + token)
+                .containsEntry("userAgent", "AuthRegistrationControllerTest/1.0");
+        assertThat((String) email.getVariables().get("clientIp")).isNotBlank();
+        assertThat(Instant.parse((String) email.getVariables().get("time"))).isNotNull();
     }
 
     @Test
@@ -274,7 +278,7 @@ class AuthRegistrationControllerTest extends TestcontainersSupport {
         ResponseEntity<String> response = restTemplate.exchange(
                 "/auth/register",
                 HttpMethod.POST,
-                jsonRequest(""),
+                jsonRequest(),
                 String.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
@@ -304,13 +308,14 @@ class AuthRegistrationControllerTest extends TestcontainersSupport {
     private HttpEntity<RegisterRequest> jsonRequest(RegisterRequest request) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("User-Agent", "AuthRegistrationControllerTest/1.0");
         return new HttpEntity<>(request, headers);
     }
 
-    private HttpEntity<String> jsonRequest(String request) {
+    private HttpEntity<String> jsonRequest() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        return new HttpEntity<>(request, headers);
+        return new HttpEntity<>("", headers);
     }
 
     private RegisterRequest request(

@@ -3,6 +3,7 @@ package com.techindna.template.controller;
 import com.techindna.template.dto.MessageResponse;
 import com.techindna.template.dto.auth.RegisterRequest;
 import com.techindna.template.service.auth.RegistrationService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +18,9 @@ public class AuthController {
     private final RegistrationService registrationService;
 
     @PostMapping("/auth/register")
-    public ResponseEntity<MessageResponse> register(@RequestBody RegisterRequest request) {
+    public ResponseEntity<MessageResponse> register(
+            @RequestBody RegisterRequest request, HttpServletRequest servletRequest) {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
-                .body(registrationService.register(request));
+                .body(registrationService.register(request, servletRequest));
     }
 }

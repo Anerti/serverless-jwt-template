@@ -10,6 +10,8 @@ import com.techindna.template.service.mail.EmailService;
 import com.techindna.template.service.mapper.UserMapper;
 import com.techindna.template.service.redis.VerificationTokenService;
 import com.techindna.template.validator.AuthValidator;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,7 +34,7 @@ public class RegistrationService {
     private String baseUrl;
 
     @Transactional
-    public MessageResponse register(RegisterRequest request) {
+    public MessageResponse register(RegisterRequest request, HttpServletRequest servletRequest) {
         authValidator.validateRegistration(request);
 
         JUser user = userMapper.toPersistenceModel(request);
@@ -50,15 +52,19 @@ public class RegistrationService {
             throw e;
         }
 
-        sendVerificationEmail(user);
+        sendVerificationEmail(user, servletRequest);
 
         return new MessageResponse("An email has been sent to verify your account");
     }
 
-    private void sendVerificationEmail(JUser user) {
+    private void sendVerificationEmail(JUser user, HttpServletRequest servletRequest) {
         String token = verificationTokenService.createForUser(user.getId());
         String verificationLink =
                 baseUrl.replaceAll("/+$", "") + "/auth/verification/" + token;
+        String userAgent = servletRequest.getHeader("User-Agent");
+        if (userAgent == null) {
+            userAgent = "Unknown";
+        }
 
         try {
             emailService.sendMail(
@@ -71,7 +77,11 @@ public class RegistrationService {
                                     "lastName", user.getLastName(),
                                     "username", user.getUsername(),
                                     "email", user.getEmail(),
-                                    "verificationUrl", verificationLink)));
+                                    "verificationUrl", verificationLink,
+                                    "clientIp", servletRequest.getRemoteAddr(),
+                                    "userAgent", userAgent,
+                                    "time",
+                                    DateTimeFormatter.ISO_INSTANT.format(user.getCreatedAt()))));
         } catch (MailException e) {
             verificationTokenService.delete(token);
             throw e;
