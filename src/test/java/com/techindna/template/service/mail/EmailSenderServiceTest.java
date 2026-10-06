@@ -21,6 +21,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.templatemode.TemplateMode;
+import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 @ExtendWith(MockitoExtension.class)
 class EmailSenderServiceTest {
@@ -44,11 +47,9 @@ class EmailSenderServiceTest {
         assertThat(message.getSubject()).isEqualTo("Email Verification");
         assertThat(message.getAllRecipients()[0]).hasToString("recipient@example.com");
         assertThat(message.getContent().toString())
-                .isEqualTo(String.join(
-                        System.lineSeparator(),
-                        "Verify your account",
-                        "firstName: John",
-                        "verificationUrl: http://localhost/verify"));
+                .contains("Verify your account")
+                .contains("firstName: John")
+                .contains("verificationUrl: http://localhost/verify");
     }
 
     @Test
@@ -74,6 +75,42 @@ class EmailSenderServiceTest {
                 "recipient@example.com", "Account Locked", null, Map.of()));
 
         assertThat(sentMessage().getContent().toString()).isEqualTo("Account Locked");
+    }
+
+    @Test
+    void rendersHtmlTemplateWithVerificationLink() throws Exception {
+        givenEmptyMimeMessage();
+
+        SpringTemplateEngine templateEngine = new SpringTemplateEngine();
+        ClassLoaderTemplateResolver resolver = new ClassLoaderTemplateResolver();
+        resolver.setPrefix("templates/");
+        resolver.setSuffix(".html");
+        resolver.setTemplateMode(TemplateMode.HTML);
+        templateEngine.setTemplateResolver(resolver);
+
+        EmailSenderService service =
+                new EmailSenderService(javaMailSender, SENDER, templateEngine);
+
+        service.sendMail(new EmailDetails(
+                "recipient@example.com",
+                "Email Verification",
+                "Verify your account",
+                Map.of(
+                        "firstName", "John",
+                        "lastName", "Doe",
+                        "username", "jdoe",
+                        "email", "jdoe@example.com",
+                        "verificationUrl", "http://localhost/verify")));
+
+        String html = sentMessage().getContent().toString();
+        assertThat(html).contains("<html")
+                .contains("Email Verification")
+                .contains("http://localhost/verify")
+                .contains("Hello <strong>John</strong>")
+                .contains("jdoe")
+                .contains("John Doe")
+                .contains("jdoe@example.com")
+                .contains("15 minutes");
     }
 
     @Test

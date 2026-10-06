@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="format-detection" content="telephone=no">
+    <title>Email Verification</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: Arial, Helvetica, sans-serif;">
+    <!--[if mso]>
+    <table width="600" cellpadding="0" cellspacing="0"><tr><td>
+    <![endif]-->
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f4f4f7; padding: 40px 0;">
+        <tr>
+            <td align="center">
+                <!--[if mso]>
+                <table width="480" cellpadding="0" cellspacing="0"><tr><td>
+                <![endif]-->
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="max-width: 480px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #1a1a2e; padding: 24px 32px; text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 20px; font-weight: bold; mso-line-height-rule: exactly; line-height: 28px;">Email Verification</h1>
+                        </td>
+                    </tr>
+
+                    <!-- Body -->
+                    <tr>
+                        <td style="padding: 32px;">
+                            <p style="margin: 0 0 16px; color: #333333; font-size: 15px; mso-line-height-rule: exactly; line-height: 24px;">
+                                Hello <strong th:text="${firstName}">John</strong>,
+                            </p>
+                            <p style="margin: 0 0 24px; color: #555555; font-size: 14px; mso-line-height-rule: exactly; line-height: 22px;">
+                                Thank you for registering. Please verify your email by clicking the button below.
+                            </p>
+
+                            <!-- Verify button -->
+                            <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom: 16px;">
+                                <tr>
+                                    <td align="center">
+                                        <a th:href="${verificationUrl}" style="display: inline-block; background-color: #1a1a2e; color: #ffffff; font-size: 15px; font-weight: bold; text-decoration: none; padding: 14px 32px; border-radius: 6px; mso-line-height-rule: exactly; line-height: 20px;">Verify account</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 0 0 8px; color: #555555; font-size: 14px; mso-line-height-rule: exactly; line-height: 22px; text-align: center;">
+                                This link expires in <strong>15 minutes</strong>.
+                            </p>
+
+                            <!-- Registration details -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 24px; border-top: 1px solid #e8e8e8;">
+                                <tr>
+                                    <td style="padding: 16px 0 8px;">
+                                        <p style="margin: 0; color: #777777; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Registration Details</p>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e0e0e0; border-radius: 4px; overflow: hidden; background-color: #f0f0f0;">
+                                <tr>
+                                    <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold; border-bottom: 1px solid #e0e0e0;">Username</td>
+                                    <td th:text="${username}" style="padding: 10px 12px; color: #333333; font-size: 13px; border-bottom: 1px solid #e0e0e0; word-wrap: break-word;">jdoe</td>
+                                </tr>
+                                <tr>
+                                    <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold; border-bottom: 1px solid #e0e0e0;">Name</td>
+                                    <td th:text="${firstName} + ' ' + ${lastName}" style="padding: 10px 12px; color: #333333; font-size: 13px; border-bottom: 1px solid #e0e0e0; word-wrap: break-word;">John Doe</td>
+                                </tr>
+                                <tr>
+                                    <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold; border-bottom: 1px solid #e0e0e0;">Email</td>
+                                    <td th:text="${email}" style="padding: 10px 12px; color: #333333; font-size: 13px; border-bottom: 1px solid #e0e0e0; word-wrap: break-word;">jdoe@example.com</td>
+                                </tr>
+                                <tr>
+                                    <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold; border-bottom: 1px solid #e0e0e0;">IP Address</td>
+                                    <td th:text="${clientIp}" style="padding: 10px 12px; color: #333333; font-size: 13px; border-bottom: 1px solid #e0e0e0; word-wrap: break-word;">127.0.0.1</td>
+                                </tr>
+                                <tr>
+                                    <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold; border-bottom: 1px solid #e0e0e0;">User Agent</td>
+                                    <td th:text="${userAgent}" style="padding: 10px 12px; color: #333333; font-size: 13px; border-bottom: 1px solid #e0e0e0; word-wrap: break-word;">Mozilla/5.0</td>
+                                </tr>
+                                <tr>
+                                    <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold;">Registered At</td>
+                                    <td th:text="${time}" style="padding: 10px 12px; color: #333333; font-size: 13px; word-wrap: break-word;">2025-01-01T00:00:00Z</td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f9f9fb; padding: 16px 32px; text-align: center; border-top: 1px solid #e8e8e8;">
+                            <p style="margin: 0; color: #cc0000; font-size: 12px; mso-line-height-rule: exactly; line-height: 18px;">
+                                If you did not create an account, you can safely ignore this email.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                <!--[if mso]>
+                </td></tr></table>
+                <![endif]-->
+            </td>
+        </tr>
+    </table>
+    <!--[if mso]>
+    </td></tr></table>
+    <![endif]-->
+</body>
+</html>

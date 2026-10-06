@@ -58,7 +58,12 @@ public class RegistrationService {
                         user.getEmail(),
                         "Verify your account",
                         "Use the following link to verify your account:",
-                        Map.of("Verification link", verificationLink)));
+                        Map.of(
+                                "firstName", user.getFirstName(),
+                                "lastName", user.getLastName(),
+                                "username", user.getUsername(),
+                                "email", user.getEmail(),
+                                "verificationUrl", verificationLink)));
 
         return new MessageResponse("An email has been sent to verify your account");
     }
