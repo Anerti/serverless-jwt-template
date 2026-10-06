@@ -70,11 +70,10 @@ src/main/resources/
   application.properties         default config, no secrets
   db/migration/V1__init.sql       schema source of truth for local/Postgres setup
 src/test/java/                   tests, including container-backed smoke tests
-src/test/resources/
-  application-test.properties    test-time config; do not shadow main application.properties
+src/test/resources/application.properties  isolated test defaults, no secrets
 docs/api/api.yaml               OpenAPI contract
 docs/cdm.canvas                 Obsidian data-model canvas
-.env, .env.test                  local secrets, git-ignored; never commit
+.env                             local secrets, git-ignored; never commit
 ```
 
 Ignore generated directories such as `build/` and `.gradle/` when making changes.
@@ -138,9 +137,12 @@ Do not return raw strings or Spring default error JSON when handling application
 
 - `.env` lives at the repo root and is loaded through `spring.config.import=optional:file:.env[.properties]`
 - Keys use dotted Spring property names such as `spring.datasource.url`, `app.jwt.secret`, and `app.base-url`
-- `.env` and `.env.test` are git-ignored; never commit them or print their contents
+- `.env` is git-ignored; never commit it or print its contents
 - Keep `application.properties` secret-free and only use it for defaults
 - Do not add secrets to code, tests, docs, or commit messages
+- Tests use `src/test/resources/application.properties` for isolated, secret-free defaults and do
+  not load either root `.env` file. `TestcontainersSupport` supplies container endpoints and a
+  freshly generated JWT signing key through `@DynamicPropertySource`.
 
 ## Implementation notes from this repo
 
@@ -158,7 +160,10 @@ Do not return raw strings or Spring default error JSON when handling application
 ./gradlew bootRun
 ```
 
-Use the Gradle wrapper, not a system `gradle` install. If you add tests, prefer small, focused tests over broad Spring Boot context loading unless the change truly requires it.
+Use the Gradle wrapper, not a system `gradle` install. `./gradlew check` and `./gradlew build`
+enforce a minimum 85% JaCoCo instruction coverage; reports are written under
+`build/reports/jacoco/test/`. If you add tests, prefer small, focused tests over broad Spring Boot
+context loading unless the change truly requires it.
 
 ## Definition of done for changes
 

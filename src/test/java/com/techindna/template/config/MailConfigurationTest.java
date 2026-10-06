@@ -2,7 +2,6 @@ package com.techindna.template.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.techindna.template.TestcontainersSupport;
 import jakarta.mail.Session;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
@@ -10,10 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
-import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-@ActiveProfiles("test")
 class MailConfigurationTest extends TestcontainersSupport {
 
     @Autowired

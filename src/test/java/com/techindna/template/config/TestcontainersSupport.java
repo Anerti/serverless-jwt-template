@@ -1,5 +1,7 @@
-package com.techindna.template;
+package com.techindna.template.config;
 
+import java.security.SecureRandom;
+import java.util.Base64;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -11,6 +13,9 @@ import org.testcontainers.utility.MountableFile;
 
 @Testcontainers
 public abstract class TestcontainersSupport {
+
+    private static final String TEST_JWT_SECRET =
+            Base64.getEncoder().encodeToString(new SecureRandom().generateSeed(48));
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES =
@@ -26,6 +31,7 @@ public abstract class TestcontainersSupport {
 
     @DynamicPropertySource
     static void configureTestContainers(DynamicPropertyRegistry registry) {
+        registry.add("app.jwt.secret", () -> TEST_JWT_SECRET);
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
