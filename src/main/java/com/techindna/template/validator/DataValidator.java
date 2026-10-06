@@ -3,6 +3,7 @@ package com.techindna.template.validator;
 import com.techindna.template.exception.http.UnprocessableContentException;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Component
@@ -24,29 +25,28 @@ public class DataValidator {
         }
     }
 
-    public void validateUsername(String value){
-        checkNullData("username", value);
-        checkStringLength("username", value, 50);
+    public String normalizeUsername(String value) {
+        return value == null ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
 
-        if (!USERNAME_FORMAT.matcher(value).matches()){
+    public String normalizeEmail(String value) {
+        return value == null ? null : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    public void validateUsername(String value){
+        if (value != null && !USERNAME_FORMAT.matcher(normalizeUsername(value)).matches()){
             throw new UnprocessableContentException(String.format("Username %s is invalid", value));
         }
     }
 
     public void validateEmail(String field, String value) {
-        checkNullData(field, value);
-        checkStringLength(field, value, 100);
-
-        if (!EMAIL_FORMAT.matcher(value.toLowerCase()).matches()) {
+        if (value != null && !EMAIL_FORMAT.matcher(normalizeEmail(value)).matches()) {
             throw new UnprocessableContentException(String.format("Email %s is not valid", value));
         }
     }
 
     public void validateName(String field, String value) {
-        checkNullData(field, value);
-        checkStringLength(field, value, 100);
-
-        if (!NAME_FORMAT.matcher(value).matches()) {
+        if (value != null && !NAME_FORMAT.matcher(value).matches()) {
             throw new UnprocessableContentException(String.format("%s must start with a capital letter and contain only letters, hyphens, apostrophes, and spaces", field));
         }
     }

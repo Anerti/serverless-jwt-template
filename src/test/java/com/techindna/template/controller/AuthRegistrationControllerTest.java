@@ -242,6 +242,17 @@ class AuthRegistrationControllerTest extends TestcontainersSupport {
     }
 
     @Test
+    void mixedCaseUsernameAndEmailAreNormalizedBeforePersistence() {
+        saveExistingUser("jane-doe", "jane.doe@example.com");
+
+        ResponseEntity<String> response = registerError(
+                request("Jane-Doe", validPassword(), validPassword(), "Jane", "Doe",
+                        "Jane.Doe@Example.com"));
+
+        assertConflict(response, "You cannot use this username");
+    }
+
+    @Test
     void missingRequestBodyReturnsBadRequest() {
         ResponseEntity<String> response = restTemplate.exchange(
                 "/auth/register",
