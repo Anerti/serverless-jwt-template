@@ -1,4 +1,4 @@
-package com.techindna.template.controller;
+package com.techindna.template.api;
 
 import com.techindna.template.dto.MessageResponse;
 import com.techindna.template.dto.auth.RegisterRequest;

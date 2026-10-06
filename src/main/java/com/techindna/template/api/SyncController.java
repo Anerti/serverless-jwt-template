@@ -1,4 +1,4 @@
-package com.techindna.template.controller;
+package com.techindna.template.api;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;

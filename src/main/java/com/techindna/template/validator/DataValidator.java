@@ -9,7 +9,7 @@ import java.util.regex.Pattern;
 @Component
 public class DataValidator {
 
-    private static final Pattern EMAIL_FORMAT = Pattern.compile("^[a-z0-9_.-]+@[a-z0-9_-]+(\\.[a-z]+){1,2}$");
+    private static final Pattern EMAIL_FORMAT = Pattern.compile("^[a-z0-9_.-]+@[a-z0-9_-]+(\\.[a-z]+)+$");
     private static final Pattern NAME_FORMAT = Pattern.compile("^[A-Z][a-z-'éèê ]{2,}$");
     private static final Pattern USERNAME_FORMAT = Pattern.compile("^[a-zA-Z_0-9-]{2,}$");
 

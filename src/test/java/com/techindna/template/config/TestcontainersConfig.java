@@ -12,7 +12,7 @@ import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
 @Testcontainers
-public abstract class TestcontainersSupport {
+public abstract class TestcontainersConfig {
 
     private static final String TEST_JWT_SECRET =
             Base64.getEncoder().encodeToString(new SecureRandom().generateSeed(48));

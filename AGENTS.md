@@ -140,7 +140,7 @@ Do not return raw strings or Spring default error JSON when handling application
 - Keep `application.properties` secret-free and only use it for defaults
 - Do not add secrets to code, tests, docs, or commit messages
 - Tests use `src/test/resources/application.properties` for isolated, secret-free defaults and do
-  not load either root `.env` file. `TestcontainersSupport` supplies container endpoints and a
+  not load either root `.env` file. `TestcontainersConfig` supplies container endpoints and a
   freshly generated JWT signing key through `@DynamicPropertySource`.
 
 ## Implementation notes from this repo

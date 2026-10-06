@@ -1,4 +1,4 @@
-package com.techindna.template.controller;
+package com.techindna.template.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -6,7 +6,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import com.techindna.template.config.TestcontainersSupport;
+import com.techindna.template.config.TestcontainersConfig;
 import com.techindna.template.dto.MessageResponse;
 import com.techindna.template.dto.auth.RegisterRequest;
 import com.techindna.template.entity.email.EmailDetails;
@@ -39,7 +39,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureTestRestTemplate
 @TestConstructor(autowireMode = AutowireMode.ALL)
-class AuthRegistrationControllerTest extends TestcontainersSupport {
+class AuthRegistrationTest extends TestcontainersConfig {
 
     private static final String USERNAME = "jane-doe";
     private static final String EMAIL = "jane.doe@example.com";
@@ -52,7 +52,7 @@ class AuthRegistrationControllerTest extends TestcontainersSupport {
 
     @MockitoBean private EmailService emailService;
 
-    AuthRegistrationControllerTest(
+    AuthRegistrationTest(
             TestRestTemplate restTemplate,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
@@ -218,6 +218,27 @@ class AuthRegistrationControllerTest extends TestcontainersSupport {
         assertUnprocessable(
                 request(USERNAME, validPassword(), validPassword(), "Jane", "Doe", "not-an-email"),
                 "Email not-an-email is not valid");
+    }
+
+    @Test
+    void emailWithMultiLabelDomainIsAccepted() {
+        ResponseEntity<MessageResponse> response = register(
+                request("multi-label-domain", validPassword(), validPassword(), "Jane", "Doe",
+                        "name@sub.example.co.uk"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(userRepository.findAll())
+                .singleElement()
+                .extracting(JUser::getEmail)
+                .isEqualTo("name@sub.example.co.uk");
+    }
+
+    @Test
+    void emailWithPlusAddressingIsRejected() {
+        assertUnprocessable(
+                request(USERNAME, validPassword(), validPassword(), "Jane", "Doe",
+                        "name+tag@example.com"),
+                "Email name+tag@example.com is not valid");
     }
 
     @Test

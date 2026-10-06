@@ -11,7 +11,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 @SpringBootTest
-class MailConfigurationTest extends TestcontainersSupport {
+class MailConfigTest extends TestcontainersConfig {
 
     @Autowired
     private JavaMailSender javaMailSender;
