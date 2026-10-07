@@ -1,9 +1,11 @@
 package com.techindna.template.validator;
 
+import com.techindna.template.dto.auth.LoginRequest;
 import com.techindna.template.dto.auth.RegisterRequest;
 import com.techindna.template.exception.http.UnprocessableContentException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 @RequiredArgsConstructor
@@ -32,6 +34,25 @@ public class AuthValidator {
 
         dataValidator.checkNullData("email", request.email());
         dataValidator.checkStringLength("email", request.email(), 100);
-        dataValidator.validateEmail("email", request.email());
+        dataValidator.validateEmail(request.email());
+    }
+
+    public void validateLogin(LoginRequest request) {
+        boolean hasUsername = StringUtils.hasText(request.username());
+        boolean hasEmail = StringUtils.hasText(request.email());
+        if (!hasUsername && !hasEmail) {
+            throw new UnprocessableContentException(
+                    "Username or email is required and cannot be blank");
+        }
+
+        if (hasUsername) {
+            dataValidator.checkStringLength("username", request.username(), 50);
+            dataValidator.validateUsername(request.username());
+        }
+        if (hasEmail) {
+            dataValidator.checkStringLength("email", request.email(), 100);
+            dataValidator.validateEmail(request.email());
+        }
+        dataValidator.checkNullData("password", request.password());
     }
 }

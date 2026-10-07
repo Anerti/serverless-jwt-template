@@ -39,7 +39,7 @@ public class DataValidator {
         }
     }
 
-    public void validateEmail(String field, String value) {
+    public void validateEmail(String value) {
         if (value != null && !EMAIL_FORMAT.matcher(normalizeEmail(value)).matches()) {
             throw new UnprocessableContentException(String.format("Email %s is not valid", value));
         }

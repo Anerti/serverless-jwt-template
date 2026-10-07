@@ -205,7 +205,7 @@ paths:
                   value:
                     status: 401
                     error: Unauthorized
-                    message: Invalid credentials. 4 attempt(s) left
+                    message: Invalid username/email or password.
                     timestamp: 2026-07-20T15:00:00Z
         '403':
           description: Business rule violation
@@ -219,14 +219,14 @@ paths:
                   value:
                     status: 403
                     error: Forbidden
-                    message: Account locked
+                    message: This account has been locked after too many unsuccessful sign-in attempts. Request an account-unlock link to regain access.
                     timestamp: 2026-07-20T15:00:00Z
                 accountNotVerified:
                   summary: Account not yet verified
                   value:
                     status: 403
                     error: Forbidden
-                    message: Account has not been verified
+                    message: Verify your email address before signing in.
                     timestamp: 2026-07-20T15:00:00Z
                 hostBanned:
                   summary: Client's host is banned from this account
