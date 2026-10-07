@@ -51,7 +51,7 @@ class MailConfigTest extends TestcontainersConfig {
                         "userAgent", "JUnit",
                         "time", "2026-10-07T10:00:00Z"));
 
-        String registration = templateEngine.process("mail/verification", context);
+        String registration = templateEngine.process("mail/registration-verification", context);
         String login = templateEngine.process("mail/login-verification", context);
 
         assertThat(registration)
