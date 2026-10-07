@@ -6,8 +6,7 @@ import com.techindna.template.repository.model.JUser;
 import com.techindna.template.service.mail.EmailService;
 import com.techindna.template.service.redis.VerificationTokenService;
 import jakarta.servlet.http.HttpServletRequest;
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,13 +34,14 @@ public class VerificationEmailService {
         String token = verificationTokenService.createForUser(user.getId());
         String verificationLink =
                 baseUrl.replaceAll("/+$", "") + "/auth/verification/" + token;
+
         String userAgent = request.getHeader("User-Agent");
         if (userAgent == null) {
             userAgent = "Unknown";
         }
 
         Map<String, Object> variables =
-                new java.util.HashMap<>(
+                new HashMap<>(
                         Map.of(
                                 "firstName", user.getFirstName(),
                                 "verificationUrl", verificationLink,

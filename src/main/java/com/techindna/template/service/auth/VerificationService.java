@@ -58,10 +58,9 @@ public class VerificationService {
 
         return new VerificationResponse(
                 jwtTokenProvider.generateToken(
-                user.getId().toString(),
-                user.getRole().name(),
-                clientIpAddressResolver.resolve(request)),
-                userMapper.toResponse(user)
-        );
+                        user.getId().toString(),
+                        user.getRole().name(),
+                        clientIpAddressResolver.resolve(request)),
+                userMapper.toResponse(user));
     }
 }

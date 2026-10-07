@@ -67,7 +67,7 @@ public class EmailSenderService implements EmailService {
 
     private String templateView(EmailTemplate template) {
         return switch (template) {
-            case REGISTRATION_VERIFICATION -> "mail/verification";
+            case REGISTRATION_VERIFICATION -> "mail/registration-verification";
             case LOGIN_VERIFICATION -> "mail/login-verification";
         };
     }

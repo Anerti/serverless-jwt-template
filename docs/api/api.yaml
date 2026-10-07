@@ -30,7 +30,7 @@ paths:
     post:
       operationId: register
       summary: Register a new user account (pending verification)
-      description: Validates the registration data, saves the user with verified=false, generates a UUID verification token stored in Redis, and sends a verification link by email. The account is not active until verified by POST /auth/verification. The token expires after 15 minutes. Login is blocked until verification.
+      description: Validates the registration data, saves the user with verified=false, generates a UUID verification token stored in Redis, and sends a verification link by email. The user must complete verification with POST /auth/verification before logging in. The token expires after 15 minutes.
       tags: [Auth]
       requestBody:
         required: true
@@ -87,9 +87,10 @@ paths:
       operationId: verifyRegistration
       summary: Verify email and issue a JWT
       description: >-
-        Validates and consumes a one-time UUID verification token from the JSON request body, then returns
-        a JWT and user details. Registration tokens mark the user as verified; login tokens
-        complete sign-in for an already verified user. The token expires after 15 minutes.
+        Validates and consumes a one-time UUID verification token from the JSON request body,
+        then returns a JWT and user details. Registration tokens mark the user as verified;
+        login tokens complete sign-in for an already verified user. The token expires after
+        15 minutes.
       tags: [Auth]
       requestBody:
         required: true
@@ -106,7 +107,7 @@ paths:
       security: []
       responses:
         '200':
-          description: Email verified, account activated, or sign-in confirmed
+          description: Email verified or sign-in confirmed
           content:
             application/json:
               schema:
@@ -117,6 +118,11 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid or expired token
+                timestamp: 2026-07-20T15:00:00Z
         '403':
           description: Account is locked
           content:
@@ -126,7 +132,7 @@ paths:
               example:
                 status: 403
                 error: FORBIDDEN
-                message: This account is locked.
+                message: Account locked.
                 timestamp: 2026-07-20T15:00:00Z
 
   /auth/login:
