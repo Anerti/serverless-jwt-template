@@ -53,7 +53,7 @@ public class EmailSenderService implements EmailService {
             if (details.getVariables() != null) {
                 context.setVariables(details.getVariables());
             }
-            String html = templateEngine.process("mail/verification", context);
+            String html = templateEngine.process(details.getTemplate().viewName(), context);
             helper.setText(html, true);
 
             javaMailSender.send(mimeMessage);

@@ -219,7 +219,7 @@ paths:
                   value:
                     status: 403
                     error: Forbidden
-                    message: Account locked
+                    message: Your account has been locked after too many unsuccessful login attempts.
                     timestamp: 2026-07-20T15:00:00Z
                 accountNotVerified:
                   summary: Account not yet verified

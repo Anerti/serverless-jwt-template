@@ -11,13 +11,19 @@ import lombok.Setter;
 @NoArgsConstructor
 public class EmailDetails {
 
+    private EmailTemplate template;
     private String recipient;
     private String subject;
     private String body;
     private Map<String, Object> variables;
 
-    public EmailDetails(String recipient, String subject, String body,
-                        Map<String, Object> variables) {
+    public EmailDetails(
+            EmailTemplate template,
+            String recipient,
+            String subject,
+            String body,
+            Map<String, Object> variables) {
+        this.template = template;
         this.recipient = recipient;
         this.subject = subject;
         this.body = body;

@@ -3,6 +3,7 @@ package com.techindna.template.service.auth;
 import com.techindna.template.dto.MessageResponse;
 import com.techindna.template.dto.auth.RegisterRequest;
 import com.techindna.template.entity.email.EmailDetails;
+import com.techindna.template.entity.email.EmailTemplate;
 import com.techindna.template.exception.http.ConflictException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
@@ -69,6 +70,7 @@ public class RegistrationService {
         try {
             emailService.sendMail(
                     new EmailDetails(
+                            EmailTemplate.REGISTRATION_VERIFICATION,
                             user.getEmail(),
                             "Verify your account",
                             "Use the following link to verify your account:",
