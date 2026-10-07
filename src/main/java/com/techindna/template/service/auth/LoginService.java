@@ -40,22 +40,21 @@ public class LoginService {
                                 : userRepository.findByEmail(
                                         dataValidator.normalizeEmail(request.email())))
                         .orElseThrow(
-                        () ->
-                                new UnauthorizedException(
-                                        String.format(
-                                                "Invalid credentials. %d attempt(s) left", 4)));
-
-        if (Boolean.FALSE.equals(user.getVerified())) {
-            throw new ForbiddenException("Account has not been verified");
-        }
+                                () ->
+                                        new UnauthorizedException(String.format(
+                                                "Invalid credentials. %d attempt(s) left", 5)));
 
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new ForbiddenException(
-                    "Your account is locked. Login is unavailable until the account is unlocked.");
+                    "This account is locked. Request an account-unlock link to regain access.");
         }
 
         if (passwordEncoder.matches(request.password(), user.getPassword())) {
             loginAttemptService.clear(user.getId());
+            if (!Boolean.TRUE.equals(user.getVerified())) {
+                throw new ForbiddenException(
+                        "Verify your email address before signing in.");
+            }
             verificationEmailService.sendLoginVerification(user, servletRequest);
             return new MessageResponse("A verification link has been sent to your email");
         }
@@ -66,11 +65,9 @@ public class LoginService {
             user.setStatus(UserStatus.LOCKED);
             userRepository.save(user);
             throw new ForbiddenException(
-                    "Your account has been locked after too many unsuccessful login attempts.");
+                    "Account locked after too many unsuccessful sign-in attempts.");
         }
-        throw new UnauthorizedException(
-                String.format(
-                        "Invalid credentials. %d attempt(s) left", remainingAttempts));
+        throw new UnauthorizedException(String.format("Invalid credentials. %d attempt(s) left", remainingAttempts));
     }
 
 }
