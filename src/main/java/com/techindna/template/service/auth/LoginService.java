@@ -45,6 +45,10 @@ public class LoginService {
                                         String.format(
                                                 "Invalid credentials. %d attempt(s) left", 4)));
 
+        if (Boolean.FALSE.equals(user.getVerified())) {
+            throw new ForbiddenException("Account has not been verified");
+        }
+
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new ForbiddenException(
                     "Your account is locked. Login is unavailable until the account is unlocked.");

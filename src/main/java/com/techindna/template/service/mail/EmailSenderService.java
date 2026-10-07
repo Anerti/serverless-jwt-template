@@ -1,6 +1,7 @@
 package com.techindna.template.service.mail;
 
 import com.techindna.template.entity.email.EmailDetails;
+import com.techindna.template.entity.email.EmailTemplate;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import java.nio.charset.StandardCharsets;
@@ -53,7 +54,7 @@ public class EmailSenderService implements EmailService {
             if (details.getVariables() != null) {
                 context.setVariables(details.getVariables());
             }
-            String html = templateEngine.process(details.getTemplate().viewName(), context);
+            String html = templateEngine.process(templateView(details.getTemplate()), context);
             helper.setText(html, true);
 
             javaMailSender.send(mimeMessage);
@@ -62,5 +63,12 @@ public class EmailSenderService implements EmailService {
             log.error("Failed to send email with subject {}", details.getSubject(), e);
             throw new MailSendException("Failed to send email to recipient", e);
         }
+    }
+
+    private String templateView(EmailTemplate template) {
+        return switch (template) {
+            case REGISTRATION_VERIFICATION -> "mail/verification";
+            case LOGIN_VERIFICATION -> "mail/login-verification";
+        };
     }
 }
