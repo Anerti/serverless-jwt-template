@@ -1,6 +1,8 @@
 package com.techindna.template.service.auth;
 
 import com.techindna.template.dto.auth.VerificationResponse;
+import com.techindna.template.entity.enums.UserStatus;
+import com.techindna.template.exception.http.ForbiddenException;
 import com.techindna.template.exception.http.UnauthorizedException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
@@ -45,16 +47,21 @@ public class VerificationService {
                         .findById(id)
                         .orElseThrow(() -> new UnauthorizedException(INVALID_TOKEN_MESSAGE));
 
+        if (user.getStatus() == UserStatus.LOCKED) {
+            throw new ForbiddenException("Account locked.");
+        }
+
         if (Boolean.FALSE.equals(user.getVerified())) {
             user.setVerified(true);
             user = userRepository.save(user);
         }
 
-        String jwt =
+        return new VerificationResponse(
                 jwtTokenProvider.generateToken(
-                        user.getId().toString(),
-                        user.getRole().name(),
-                        clientIpAddressResolver.resolve(request));
-        return new VerificationResponse(jwt, userMapper.toResponse(user));
+                user.getId().toString(),
+                user.getRole().name(),
+                clientIpAddressResolver.resolve(request)),
+                userMapper.toResponse(user)
+        );
     }
 }
