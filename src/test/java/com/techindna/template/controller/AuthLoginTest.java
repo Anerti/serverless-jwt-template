@@ -106,7 +106,7 @@ class AuthLoginTest extends TestcontainersConfig {
                 .containsEntry("firstName", "Jane")
                 .containsEntry(
                         "verificationUrl",
-                        "http://localhost:8080/auth/verification/" + token)
+                        "http://localhost:8080/auth/verify/" + token)
                 .containsEntry("userAgent", "AuthLoginTest/1.0");
     }
 

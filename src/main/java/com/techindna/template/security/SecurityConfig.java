@@ -40,7 +40,7 @@ public class SecurityConfig {
                                         .permitAll()
                                         .requestMatchers(HttpMethod.POST, "/auth/login")
                                         .permitAll()
-                                        .requestMatchers(HttpMethod.POST, "/auth/verification")
+                                        .requestMatchers(HttpMethod.POST, "/auth/verify/*")
                                         .permitAll()
                                         .dispatcherTypeMatchers(DispatcherType.ERROR)
                                         .permitAll()

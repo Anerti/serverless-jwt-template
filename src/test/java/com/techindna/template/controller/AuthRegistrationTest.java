@@ -109,7 +109,7 @@ class AuthRegistrationTest extends TestcontainersConfig {
                 .containsEntry("email", EMAIL)
                 .containsEntry(
                         "verificationUrl",
-                        "http://localhost:8080/auth/verification/" + token)
+                        "http://localhost:8080/auth/verify/" + token)
                 .containsEntry("userAgent", "AuthRegistrationControllerTest/1.0");
         assertThat((String) email.getVariables().get("clientIp")).isNotBlank();
         assertThat(Instant.parse((String) email.getVariables().get("time"))).isNotNull();

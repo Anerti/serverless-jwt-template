@@ -19,15 +19,14 @@ Implemented:
 - `POST /auth/login`: username-or-email and password validation, credential checking, failed-attempt
   tracking in Redis, account locking after five failures, and login-verification email for verified
   users with correct credentials
+- `POST /auth/verify/{token}`: consumes the one-time Redis token, verifies registration accounts,
+  and issues a JWT with user details for registration or login verification
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and
   surface as internal errors. Registration rolls back when its email fails.
 - PostgreSQL persistence model and repository
 
 Not implemented:
 
-- `GET /auth/verification/{token}`: although registration and login emails link to this path, no
-  handler consumes tokens. Registration cannot set `verified=true`, and login cannot complete or
-  issue a JWT through its email link.
 - JWT issuance through an authentication flow, token revocation, logout, account-unlock/recovery,
   or any other `/auth/*` flow
 - User CRUD, account status/role enforcement, or admin authorization rules

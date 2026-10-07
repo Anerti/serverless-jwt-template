@@ -33,7 +33,7 @@ public class VerificationEmailService {
             Map<String, Object> additionalVariables) {
         String token = verificationTokenService.createForUser(user.getId());
         String verificationLink =
-                baseUrl.replaceAll("/+$", "") + "/auth/verification/" + token;
+                baseUrl.replaceAll("/+$", "") + "/auth/verify/" + token;
 
         String userAgent = request.getHeader("User-Agent");
         if (userAgent == null) {

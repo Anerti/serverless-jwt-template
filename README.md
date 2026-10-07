@@ -112,8 +112,8 @@ curlie POST localhost:8080/auth/register \
 
 Registration returns `202 Accepted` after the synchronous SMTP send succeeds. If sending fails, the
 request returns the shared internal-error response and the database transaction rolls back; the
-verification token is also deleted. The email links to `/auth/verification/{token}`, which is not
-implemented yet.
+verification token is also deleted. The email links to `/auth/verify/{token}`; submit that token
+to the POST verification endpoint to complete verification.
 
 Registration rules include a password of at least 12 characters containing uppercase, lowercase,
 digit, and special characters; username length 2–50; first/last name maximum 100; and email maximum

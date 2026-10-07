@@ -3,7 +3,6 @@ package com.techindna.template.controller;
 import com.techindna.template.dto.MessageResponse;
 import com.techindna.template.dto.auth.LoginRequest;
 import com.techindna.template.dto.auth.RegisterRequest;
-import com.techindna.template.dto.auth.VerificationRequest;
 import com.techindna.template.dto.auth.VerificationResponse;
 import com.techindna.template.service.auth.LoginService;
 import com.techindna.template.service.auth.RegistrationService;
@@ -37,9 +36,9 @@ public class AuthController {
                 .body(loginService.login(request, servletRequest));
     }
 
-    @PostMapping("/verification")
+    @PostMapping("/verify/{token}")
     public VerificationResponse verify(
-            @RequestBody VerificationRequest request, HttpServletRequest servletRequest) {
-        return verificationService.verify(request.token(), servletRequest);
+            @PathVariable String token, HttpServletRequest servletRequest) {
+        return verificationService.verify(token, servletRequest);
     }
 }
