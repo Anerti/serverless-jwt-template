@@ -85,13 +85,11 @@ paths:
   /auth/verification/{token}:
     get:
       operationId: verifyRegistration
-      summary: Verify email and activate the account
+      summary: Verify email and issue a JWT
       description: >-
-        Validates the UUID verification token against the pending user record and returns a
-        JWT token. Consumes tokens from all verification flows: registration (sets
-        verified=true), login, account unlock (sets status back to ACTIVE and resets the
-        failed-login counter), and email change (switches to the new pending address).
-        The token expires after 15 minutes.
+        Validates and consumes a one-time UUID verification token stored in Redis, then returns
+        a JWT and user details. Registration tokens mark the user as verified; login tokens
+        complete sign-in for an already verified user. The token expires after 15 minutes.
       tags: [Auth]
       parameters:
         - name: token

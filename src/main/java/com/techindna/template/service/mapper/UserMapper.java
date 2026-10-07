@@ -1,8 +1,10 @@
 package com.techindna.template.service.mapper;
 
 import com.techindna.template.dto.auth.RegisterRequest;
+import com.techindna.template.dto.auth.VerificationResponse;
 import com.techindna.template.repository.model.JUser;
 import com.techindna.template.validator.DataValidator;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -23,5 +25,18 @@ public class UserMapper {
                 .email(dataValidator.normalizeEmail(request.email()))
                 .verified(false)
                 .build();
+    }
+
+    public VerificationResponse.UserResponse toResponse(JUser user) {
+        return new VerificationResponse.UserResponse(
+                user.getId(),
+                user.getUsername(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail(),
+                user.getRole().name().toLowerCase(Locale.ROOT),
+                user.getStatus().name().toLowerCase(Locale.ROOT),
+                user.getCreatedAt(),
+                user.getUpdatedAt());
     }
 }
