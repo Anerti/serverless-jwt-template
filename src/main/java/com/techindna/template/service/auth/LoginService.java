@@ -44,11 +44,6 @@ public class LoginService {
                                         new UnauthorizedException(String.format(
                                                 "Invalid credentials. %d attempt(s) left", 5)));
 
-        if (!Boolean.TRUE.equals(user.getVerified())) {
-            throw new ForbiddenException(
-                    "Verify your email address before signing in.");
-        }
-
         if (user.getStatus() == UserStatus.LOCKED) {
             throw new ForbiddenException(
                     "This account is locked. Request an account-unlock link to regain access.");
@@ -56,6 +51,10 @@ public class LoginService {
 
         if (passwordEncoder.matches(request.password(), user.getPassword())) {
             loginAttemptService.clear(user.getId());
+            if (!Boolean.TRUE.equals(user.getVerified())) {
+                throw new ForbiddenException(
+                        "Verify your email address before signing in.");
+            }
             verificationEmailService.sendLoginVerification(user, servletRequest);
             return new MessageResponse("A verification link has been sent to your email");
         }

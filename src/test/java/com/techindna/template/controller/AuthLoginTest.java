@@ -269,7 +269,7 @@ class AuthLoginTest extends TestcontainersConfig {
     }
 
     @Test
-    void unverifiedUserCannotStartLoginAndFailureCounterIsUnchanged() {
+    void unverifiedUserWithCorrectPasswordCannotStartLoginAndFailureCounterIsCleared() {
         JUser user = saveUser(false);
         String attemptsKey = LOGIN_ATTEMPT_KEY_PREFIX + user.getId();
         redis.opsForValue().set(attemptsKey, "2");
@@ -278,7 +278,22 @@ class AuthLoginTest extends TestcontainersConfig {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
         assertThat(response.getBody()).contains("Verify your email address");
-        assertThat(redis.opsForValue().get(attemptsKey)).isEqualTo("2");
+        assertThat(redis.opsForValue().get(attemptsKey)).isNull();
+        assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void unverifiedUserWithIncorrectPasswordGetsInvalidCredentialsResponse() {
+        JUser user = saveUser(false);
+
+        ResponseEntity<String> response =
+                loginError(new LoginRequest(USERNAME, null, "WrongPassword1!"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getBody()).contains("Invalid credentials. 4 attempt(s) left");
+        assertThat(redis.opsForValue().get(LOGIN_ATTEMPT_KEY_PREFIX + user.getId()))
+                .isEqualTo("1");
         assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
         verifyNoInteractions(emailService);
     }
