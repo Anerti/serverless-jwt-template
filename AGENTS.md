@@ -4,9 +4,9 @@ Guidance for AI coding agents and contributors working in this repository.
 
 ## Project status
 
-This is a Spring Boot 4.1.1 JWT template with a partial, working security foundation and one
-implemented account flow. The source tree is authoritative for current behavior; `docs/api/api.yaml`
-describes the broader intended API and is not a list of implemented endpoints.
+This is a Spring Boot 4.1.1 JWT template with a partial security foundation and implemented
+registration and login-start flows. The source tree is authoritative for current behavior;
+`docs/api/api.yaml` describes the broader intended API and is not a list of implemented endpoints.
 
 Implemented:
 
@@ -16,18 +16,28 @@ Implemented:
 - Argon2 password hashing and a shared `ErrorBody` response envelope
 - `POST /auth/register`: input validation, canonicalized username/email, password hashing, user
   persistence, 15-minute Redis verification token, and HTML verification email
-- Synchronous SMTP sending; a mail failure is returned as an internal error and the registration
-  transaction rolls back
+- `POST /auth/login`: username-or-email and password validation, credential checking, failed-attempt
+  tracking in Redis, account locking after five failures, and login-verification email for verified
+  users with correct credentials
+- Synchronous SMTP sending; mail failures remove the associated Redis verification token and
+  surface as internal errors. Registration rolls back when its email fails.
 - PostgreSQL persistence model and repository
 
 Not implemented:
 
-- Login, email verification, token issuance/revocation, logout, or any other `/auth/*` flow
+- `GET /auth/verification/{token}`: although registration and login emails link to this path, no
+  handler consumes tokens. Registration cannot set `verified=true`, and login cannot complete or
+  issue a JWT through its email link.
+- JWT issuance through an authentication flow, token revocation, logout, account-unlock/recovery,
+  or any other `/auth/*` flow
 - User CRUD, account status/role enforcement, or admin authorization rules
 
-The registration email points to `/auth/verification/{token}`, but that endpoint is not implemented
-yet. Do not describe an account as activated by this template: registration saves it with
-`verified=false` and the persistence model's default `status=ACTIVE`.
+Registration saves users with `verified=false` and the persistence model's default
+`status=ACTIVE`; do not describe accounts as activated by this template. Login returns 202 after
+sending a login-verification email; it does not issue a token or establish an authenticated session.
+Five incorrect passwords for an existing account set its status to `LOCKED`; this lock has no
+implemented recovery path. Failed-login responses also differ for unknown users and incorrect
+passwords, so do not claim that login currently prevents account enumeration.
 
 ## Stack and constraints
 
@@ -63,6 +73,7 @@ src/main/resources/
   db/migration/V1__init.sql         PostgreSQL schema setup script
   templates/mail/verification.html
 src/test/java/                      tests; TestcontainersConfig starts PostgreSQL and Redis
+  com/techindna/template/api/        AuthRegistrationTest and AuthLoginTest integration tests
 src/test/resources/application.properties
 docs/api/api.yaml                   OpenAPI contract
 docs/cdm.canvas                     data-model canvas
@@ -104,11 +115,25 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 
 - Registration creates a user with `verified=false`, stores a verification token in Redis for 15
   minutes, and sends the verification template synchronously before returning 202.
-- On a mail failure, delete the Redis token and rethrow the mail exception; do not report success.
+- Login accepts either username or email plus password. When both identifiers are present,
+  username takes precedence. Identity lookups use trimmed, lowercase values.
+- Correct credentials clear the login-attempt counter. Unverified users are then rejected; verified
+  users receive a login-verification email and a 202 response. The link is not currently
+  completable because the verification endpoint is not implemented.
+- Five password failures for a known user set its persistent status to `LOCKED`. Login-attempt
+  Redis keys currently have no expiry, and no unlock/recovery flow exists; do not imply temporary
+  lockout or recovery behavior.
+- Unknown identifiers return 401 with a fixed five-attempt message, while wrong passwords for
+  existing accounts return a decrementing attempt count. Locked accounts return 403. These
+  differing responses can disclose account existence.
+- On a mail failure, delete the corresponding Redis verification token and rethrow the mail
+  exception; do not report success.
 - `EmailSenderService` renders `templates/mail/verification.html` with the supplied `EmailDetails`
-  variables. Keep template variable names in sync with `RegistrationService`.
-- Registration email metadata currently includes client remote address, user agent, and the
-  persisted creation timestamp. `clientIp` uses `HttpServletRequest.getRemoteAddr()`.
+  variables. Keep template variable names in sync with `AuthVerificationEmailService` and
+  `VerificationEmailService`.
+- Verification email metadata includes client remote address, user agent, and a timestamp.
+  Registration uses the persisted creation timestamp; login uses the current time. `clientIp` uses
+  `HttpServletRequest.getRemoteAddr()`.
 
 ### API contract and config
 
