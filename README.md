@@ -1,11 +1,12 @@
 # jwt-serverless-template
 
-A Spring Boot template for stateless REST services using JWT bearer authentication, PostgreSQL,
-Redis, and email verification. The repository contains a partial security foundation and an initial
-registration endpoint; it is not a complete user-management API.
+A Spring Boot 4.1.1 template for stateless REST APIs using JWT bearer authentication,
+PostgreSQL, Redis, and email verification. The project already includes a working auth flow for
+registration, email verification, and login-start messaging, but it remains a foundational auth
+service rather than a complete user-management or RBAC platform.
 
 - **Stack:** Java 25 · Spring Boot 4.1.1 · Spring Security · Spring Data JPA · PostgreSQL · Redis ·
-  Spring Mail · Thymeleaf · jjwt 0.12.6 · Gradle 9.7.1
+  Spring Mail · Thymeleaf · JJWT 0.12.6 · Gradle 9.7.1
 - **API contract:** [`docs/api/api.yaml`](docs/api/api.yaml) (OpenAPI 3.0.3)
 - **Data model:** [`docs/cdm.canvas`](docs/cdm.canvas) (Obsidian canvas)
 - **Contributor/agent guidance:** [`AGENTS.md`](AGENTS.md)
@@ -15,22 +16,24 @@ registration endpoint; it is not a complete user-management API.
 | Feature | Status |
 | --- | --- |
 | `GET /syn` health check | Implemented |
-| Stateless JWT filter and token signing/validation support | Implemented; no login or token-issuing endpoint |
+| Stateless JWT filter and signature/expiration validation | Implemented |
 | `POST /auth/register` | Implemented |
-| Registration email verification endpoint | Not implemented |
-| Login, logout, revocation, password/email changes, account unlock | Not implemented |
-| `/users` CRUD and admin authorization | Not implemented |
+| `POST /auth/login` | Implemented |
+| `GET /auth/verify/{token}` | Implemented |
+| `POST /auth/verify/{token}` | Implemented |
+| Logout, token revocation, account unlock/recovery, bulk user management | Not implemented |
+| Role-based endpoint authorization and admin-only flows | Not implemented |
 
-The OpenAPI document describes intended API behavior; it is not a changelog. Only `GET /syn` and
-`POST /auth/register` are currently implemented.
+The OpenAPI document captures the broader intended API, not a guarantee that every path is fully
+implemented. Current shipped behavior is the public health check and the auth lifecycle above.
 
 ## Requirements
 
 - JDK 25
 - PostgreSQL
 - Redis
-- Docker, to run the Testcontainers-based test suite
-- SMTP settings and credentials to send actual registration emails
+- Docker to run the Testcontainers-based test suite
+- SMTP settings and credentials to send actual verification emails
 
 ## Local setup
 
@@ -56,7 +59,7 @@ Create a root `.env` properties file for local settings:
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/app
 spring.datasource.username=postgres
-spring.datasource.password=<database-password>
+spring.datasource.password=postgres
 app.jwt.secret=<base64-encoded-48-byte-key>
 app.jwt.expiration-ms=3600000
 app.base-url=http://localhost:8080
@@ -96,7 +99,10 @@ syn-ack
 | Method | Path | Access | Behavior |
 | --- | --- | --- | --- |
 | `GET` | `/syn` | Public | Returns `syn-ack` |
-| `POST` | `/auth/register` | Public | Validates and saves an unverified user, creates a 15-minute Redis token, and sends the verification email |
+| `POST` | `/auth/register` | Public | Validates and saves an unverified user, creates a 15-minute verification token, and sends the HTML verification email |
+| `POST` | `/auth/login` | Public | Accepts username-or-email + password, rejects locked/inactive accounts, clears failed attempts on success, and sends a verification email for valid verified users |
+| `GET` | `/auth/verify/{token}` | Public | Shows the confirmation page with the token |
+| `POST` | `/auth/verify/{token}` | Public | Consumes the one-time token, marks the user verified, and issues a JWT |
 
 Register with curlie:
 
@@ -112,16 +118,20 @@ curlie POST localhost:8080/auth/register \
 
 Registration returns `202 Accepted` after the synchronous SMTP send succeeds. If sending fails, the
 request returns the shared internal-error response and the database transaction rolls back; the
-verification token is also deleted. The email links to `/auth/verify/{token}`; submit that token
-to the POST verification endpoint to complete verification.
+verification token is also deleted. The corresponding email links to `/auth/verify/{token}`. The user
+must submit the token to the POST verification endpoint to complete verification.
+
+Login follows the same pattern, but it does not establish a session or return a token. On correct
+credentials it clears the failed-attempt counter and, if the account is already verified, sends a
+login-verification email and returns `202 Accepted`.
 
 Registration rules include a password of at least 12 characters containing uppercase, lowercase,
 digit, and special characters; username length 2–50; first/last name maximum 100; and email maximum
 100. Username and email are trimmed and lowercased before persistence. Email validation allows
 multi-label domains (for example `name@sub.example.co.uk`) but currently rejects `+` addresses.
 
-The email template displays the user's name, username, email, verification link, request remote
-address, user-agent string, and persisted registration timestamp. The IP value is obtained from
+The verification email includes the user's name, username, email, verification link, remote client
+address, user-agent string, and persisted creation timestamp. `clientIp` is populated from
 `HttpServletRequest.getRemoteAddr()`.
 
 Validation failures return 422, duplicate username/email conflicts return 409, and unexpected
@@ -138,21 +148,22 @@ errors use the shared `ErrorBody` envelope:
 
 ## Security foundation
 
-The application uses a stateless Spring Security filter chain. `/syn` and `/auth/register` are
-explicitly public; other requests require authentication. The JWT filter validates signature and
-expiration, reads the subject/role/IP claims, and checks the request IP against the token's IP
-claim. Invalid/expired tokens continue anonymously; an IP mismatch returns 401.
+The application uses a stateless Spring Security filter chain. Public routes are explicitly allowed
+for `/syn`, `/auth/register`, `/auth/login`, and `/auth/verify/*`; other requests require
+authentication. The JWT filter validates signature and expiration, reads subject/role/IP claims,
+and checks the request IP against the token's IP claim. Invalid/expired tokens continue anonymously;
+an IP mismatch returns 401.
 
-JWT utilities can generate tokens, but the implemented API has no login or token-issuance route.
-The filter's role claim is converted to a Spring authority, but endpoint-level role authorization is
-not configured yet. Passwords are encoded with Spring Security's Argon2 password encoder.
+Role claims are converted to Spring authorities, but endpoint-level role enforcement is not
+configured. Passwords are encoded with Spring Security's Argon2 password encoder.
 
 ## Data model
 
 PostgreSQL schema is defined in
 [`src/main/resources/db/migration/V1__init.sql`](src/main/resources/db/migration/V1__init.sql).
 The setup script creates the `template_app` schema, role/status enums, and user table. Registration
-stores the user with `verified=false`; status currently defaults to `ACTIVE`.
+stores the user with `verified=false`; status defaults to `ACTIVE` unless changed elsewhere in the
+application logic.
 
 ## Project layout
 
@@ -160,19 +171,19 @@ stores the user with `verified=false`; status currently defaults to `ACTIVE`.
 build.gradle
 settings.gradle
 src/main/java/com/techindna/template/
-  api/                              AuthController, SyncController
+  controller/                       AuthController, SyncController
   dto/                              request/response records
   entity/                           domain types and email details
   exception/                        ErrorBody, exception advice/types
-  repository/                       Spring Data repository and JPA model
+  repository/                       Spring Data repositories and JPA model
   security/                         SecurityConfig and JWT filter/provider
-  service/                          registration, email, Redis, mapping
+  service/                          registration, login, verification, Redis, email mapping
   validator/                        auth and data validation
 src/main/resources/
   application.properties
   db/migration/V1__init.sql
   templates/mail/verification.html
-src/test/java/                      tests using Testcontainers
+src/test/java/                      Testcontainers-based integration tests
 src/test/resources/application.properties
 docs/api/api.yaml                   OpenAPI contract
 docs/cdm.canvas                     data model canvas
@@ -213,7 +224,7 @@ Boot 4 changed starter names and Jackson packages. Check imports when adapting o
 - **Database connection failure:** Confirm PostgreSQL is running, credentials are correct, and the
   schema script has been applied.
 - **Redis connection failure:** Confirm Redis is running at the configured host and port.
-- **Registration email fails:** Check the SMTP host, port, username, password, and provider's
+- **Registration/login email fails:** Check the SMTP host, port, username, password, and provider's
   authentication requirements.
 - **Tests cannot start containers:** Ensure Docker is installed and running.
 
