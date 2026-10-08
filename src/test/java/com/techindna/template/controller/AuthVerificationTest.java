@@ -20,8 +20,10 @@ import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRe
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.TestConstructor;
@@ -94,18 +96,23 @@ class AuthVerificationTest extends TestcontainersConfig {
     }
 
     @Test
-    void getRequestDoesNotConsumeVerificationToken() {
+    void getVerificationPageDoesNotConsumeTokenOrVerifyUser() {
         JUser user = saveUser(false, UserStatus.ACTIVE);
         String token = verificationTokenService.createForUser(user.getId());
 
         ResponseEntity<String> response =
                 restTemplate.exchange(
-                        "/auth/verify/" + token,
-                        HttpMethod.GET,
-                        HttpEntity.EMPTY,
-                        String.class);
+                        "/auth/verify/" + token, HttpMethod.GET, HttpEntity.EMPTY, String.class);
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(MediaType.TEXT_HTML.isCompatibleWith(response.getHeaders().getContentType()))
+                .isTrue();
+        assertThat(response.getHeaders().getCacheControl()).isEqualTo("no-store");
+        assertThat(response.getBody())
+                .contains("<form")
+                .contains("method=\"post\"")
+                .contains("/auth/verify/" + token)
+                .contains("Confirm");
         assertThat(redis.opsForValue().get(VERIFICATION_KEY_PREFIX + token))
                 .isEqualTo(user.getId().toString());
         assertThat(userRepository.findById(user.getId()).orElseThrow().getVerified()).isFalse();
@@ -167,10 +174,12 @@ class AuthVerificationTest extends TestcontainersConfig {
     }
 
     private ResponseEntity<VerificationResponse> verify(String token) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         return restTemplate.exchange(
                 "/auth/verify/" + token,
                 HttpMethod.POST,
-                HttpEntity.EMPTY,
+                new HttpEntity<>("", headers),
                 VerificationResponse.class);
     }
 

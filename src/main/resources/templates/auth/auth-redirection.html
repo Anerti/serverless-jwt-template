@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Confirm your request</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px 16px;
+            background: #f4f4f7;
+            color: #333333;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        main {
+            width: min(100%, 480px);
+            margin: 0 auto;
+            overflow: hidden;
+            border-radius: 8px;
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        header {
+            padding: 24px 32px;
+            background: #1a1a2e;
+            text-align: center;
+        }
+
+        h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 20px;
+            line-height: 28px;
+        }
+
+        section {
+            padding: 32px;
+            text-align: center;
+        }
+
+        section p {
+            margin: 0 0 24px;
+            color: #555555;
+            font-size: 14px;
+            line-height: 22px;
+        }
+
+        button {
+            width: 100%;
+            min-height: 48px;
+            border: 0;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #ffffff;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #292943;
+        }
+
+        button:focus-visible {
+            outline: 3px solid #7b7b9c;
+            outline-offset: 3px;
+        }
+
+        @media (max-width: 480px) {
+            section {
+                padding: 28px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <header>
+            <h1>Confirm Your Request</h1>
+        </header>
+        <section>
+            <p>Confirm below to verify your email address or complete your sign-in.</p>
+            <form method="post" th:action="@{/auth/verify/{token}(token=${token})}">
+                <button type="submit">Confirm request</button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

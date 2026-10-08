@@ -21,7 +21,7 @@ public class AuthVerificationEmailService {
                 request,
                 EmailTemplate.REGISTRATION_VERIFICATION,
                 "Verify your account",
-                "Use the following link to verify your account:",
+                "Open the following link, then select Confirm to verify your account:",
                 DateTimeFormatter.ISO_INSTANT.format(user.getCreatedAt()),
                 Map.of(
                         "lastName", user.getLastName(),
@@ -35,7 +35,7 @@ public class AuthVerificationEmailService {
                 request,
                 EmailTemplate.LOGIN_VERIFICATION,
                 "Verify your login",
-                "Use the following link to verify your login:",
+                "Open the following link, then select Confirm to verify your login:",
                 DateTimeFormatter.ISO_INSTANT.format(Instant.now()),
                 Map.of());
     }

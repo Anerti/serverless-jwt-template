@@ -30,7 +30,7 @@ paths:
     post:
       operationId: register
       summary: Register a new user account (pending verification)
-      description: Validates the registration data, saves the user with verified=false, generates a UUID verification token stored in Redis, and sends a verification link by email. The user must complete verification with POST /auth/verify/{token} before logging in. The token expires after 15 minutes.
+      description: Validates the registration data, saves the user with verified=false, generates a UUID verification token stored in Redis, and sends a verification link by email. Opening the link displays a confirmation page; the user must submit its form with POST /auth/verify/{token} before logging in. The token expires after 15 minutes.
       tags: [Auth]
       requestBody:
         required: true
@@ -83,9 +83,34 @@ paths:
                 timestamp: 2026-07-20T15:00:00Z
 
   /auth/verify/{token}:
+    get:
+      operationId: showVerificationConfirmation
+      summary: Display the verification confirmation page
+      description: >-
+        Displays a confirmation page without consuming the token or changing account state.
+        The user must submit the form, which sends POST /auth/verify/{token}, to complete
+        registration verification or confirm sign-in.
+      tags: [Auth]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID verification token sent by email
+      security: []
+      responses:
+        '200':
+          description: Confirmation page
+          content:
+            text/html:
+              schema:
+                type: string
+
     post:
       operationId: verifyRegistration
-      summary: Verify email and issue a JWT
+      summary: Verify email or confirm sign-in
       description: >-
         Validates and consumes a one-time UUID verification token from the path, then returns
         a JWT and user details. Registration tokens mark the user as verified; login tokens
@@ -137,7 +162,8 @@ paths:
       description: >-
         Validates credentials (username or email + password), records the client's host and
         rejects banned hosts, generates a UUID verification token stored in Redis, and sends a
-        verification link by email. The token expires after 15 minutes. Complete login via
+        verification link by email. The token expires after 15 minutes. Opening the link
+        displays a confirmation page; submit its form to complete login with
         POST /auth/verify/{token}.
       tags: [Auth]
       requestBody:
@@ -241,7 +267,8 @@ paths:
       description: >-
         Generates a new UUID verification token and sends a verification email
         for the given flow. The token expires after 15 minutes. Complete the
-        flow via POST /auth/verify/{token}.
+        flow by opening the link and submitting the confirmation form with
+        POST /auth/verify/{token}.
       tags: [Auth]
       parameters:
         - name: email
@@ -416,7 +443,7 @@ paths:
     post:
       operationId: changeEmail
       summary: Request an email change
-      description: Validates the caller's current credentials (username or email + password), generates a UUID verification token stored in Redis, and sends a confirmation link by email to the new address. The token expires after 15 minutes. Complete the email change via POST /auth/verify/{token}. The old email remains in use until the new address is verified. This endpoint requires authentication.
+      description: Validates the caller's current credentials (username or email + password), generates a UUID verification token stored in Redis, and sends a confirmation link by email to the new address. The token expires after 15 minutes. Opening the link displays a confirmation page; submit its form to complete the email change via POST /auth/verify/{token}. The old email remains in use until the new address is verified. This endpoint requires authentication.
       tags: [Auth]
       security:
         - bearerAuth: []
@@ -497,7 +524,8 @@ paths:
       summary: Request to unlock a locked user account
       description: >-
         Public recovery endpoint. Submit the email of a LOCKED account to receive an
-        unlock link by email; complete it via POST /auth/verify/{token}. Returns
+        unlock link by email; open the link and submit its confirmation form via
+        POST /auth/verify/{token}. Returns
         403 if the account is not found or not locked, and 422 if the email is invalid.
       tags: [Auth]
       requestBody:

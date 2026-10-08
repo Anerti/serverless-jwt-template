@@ -148,11 +148,22 @@ class AuthLoginTest extends TestcontainersConfig {
         String verificationToken = key.substring(VERIFICATION_KEY_PREFIX.length());
         assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
 
+        ResponseEntity<String> confirmationPage =
+                restTemplate.exchange(
+                        "/auth/verify/" + verificationToken,
+                        HttpMethod.GET,
+                        HttpEntity.EMPTY,
+                        String.class);
+
+        assertThat(confirmationPage.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(confirmationPage.getBody()).contains("method=\"post\"", "Confirm");
+        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+
         ResponseEntity<VerificationResponse> verificationResponse =
                 restTemplate.exchange(
                         "/auth/verify/" + verificationToken,
                         HttpMethod.POST,
-                        HttpEntity.EMPTY,
+                        new HttpEntity<>("", formRequestHeaders()),
                         VerificationResponse.class);
 
         assertThat(verificationResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -390,6 +401,12 @@ class AuthLoginTest extends TestcontainersConfig {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("User-Agent", "AuthLoginTest/1.0");
         return new HttpEntity<>(request, headers);
+    }
+
+    private HttpHeaders formRequestHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        return headers;
     }
 
     private void deleteRedisKeys(String pattern) {
