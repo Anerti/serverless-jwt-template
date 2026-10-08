@@ -195,8 +195,9 @@ paths:
         Generates a new UUID verification token and sends a verification email
         for the given flow. The token expires after 15 minutes. Complete the
         flow by opening the link and submitting the confirmation form to the
-        endpoint for that flow: POST /auth/mfa/confirm/register/{token} or
-        POST /auth/mfa/confirm/login/{token}.
+        endpoint for that flow: POST /auth/mfa/confirm/register/{token},
+        POST /auth/mfa/confirm/login/{token}, or
+        POST /auth/mfa/confirm/change-email/{token}.
       tags: [Auth]
       parameters:
         - name: email
@@ -371,7 +372,7 @@ paths:
     post:
       operationId: changeEmail
       summary: Request an email change
-      description: Validates the caller's current credentials (username or email + password), generates a UUID verification token stored in Redis, and sends a confirmation link by email to the new address. The token expires after 15 minutes. Opening the link displays a confirmation page; submitting its form completes the email change. The old email remains in use until the new address is verified. This endpoint requires authentication.
+      description: Validates the caller's current credentials (username or email + password), generates a         UUID verification token stored in Redis, and sends a confirmation link by email to the new address. The token expires after 15 minutes. Opening the link displays a confirmation page; submit its form to POST /auth/mfa/confirm/change-email/{token} to complete the email change. The old email remains in use until the new address is verified. This endpoint requires authentication.
       tags: [Auth]
       security:
         - bearerAuth: []
@@ -680,6 +681,56 @@ paths:
                 status: 403
                 error: FORBIDDEN
                 message: Account locked.
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/mfa/confirm/change-email/{token}:
+    post:
+      operationId: confirmEmailChange
+      summary: Confirm email change
+      description: >-
+        Validates and consumes a one-time UUID change-email token from the path and
+        switches the account's address to the new email. The token expires after
+        15 minutes.
+      tags: [MFA]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID change-email verification token sent to the new address
+      security: []
+      responses:
+        '200':
+          description: Email address changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: Email address changed successfully
+        '401':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid or expired token
+                timestamp: 2026-07-20T15:00:00Z
+        '409':
+          description: The new email is already in use by another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 409
+                error: Conflict
+                message: This email address is already in use
                 timestamp: 2026-07-20T15:00:00Z
 
   # ──────────────── Users CRUD ────────────────
