@@ -23,9 +23,12 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
+    private final ClientIpAddressResolver clientIpAddressResolver;
 
-    public JwtAuthenticationFilter(JwtTokenProvider tokenProvider) {
+    public JwtAuthenticationFilter(
+            JwtTokenProvider tokenProvider, ClientIpAddressResolver clientIpAddressResolver) {
         this.tokenProvider = tokenProvider;
+        this.clientIpAddressResolver = clientIpAddressResolver;
     }
 
     @Override
@@ -42,7 +45,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String userId = claims.getSubject();
                 String role = claims.get("role", String.class);
                 String tokenIpAddress = claims.get("ip_address", String.class);
-                String requestIpAddress = resolveClientIpAddress(request);
+                String requestIpAddress = clientIpAddressResolver.resolve(request);
 
                 if (tokenIpAddress == null || tokenIpAddress.isBlank()) {
                     SecurityContextHolder.clearContext();
@@ -72,33 +75,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
-    }
-
-    private String resolveClientIpAddress(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            String firstIp = forwardedFor.split(",")[0].trim();
-            if (!firstIp.isEmpty()) {
-                return firstIp;
-            }
-        }
-
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-
-        String cloudflareIp = request.getHeader("CF-Connecting-IP");
-        if (cloudflareIp != null && !cloudflareIp.isBlank()) {
-            return cloudflareIp.trim();
-        }
-
-        String trueClientIp = request.getHeader("True-Client-IP");
-        if (trueClientIp != null && !trueClientIp.isBlank()) {
-            return trueClientIp.trim();
-        }
-
-        return request.getRemoteAddr();
     }
 
     private String extractTokenFromHeader(HttpServletRequest request) {

@@ -44,9 +44,9 @@ public class LoginService {
                                         new UnauthorizedException(String.format(
                                                 "Invalid credentials. %d attempt(s) left", 5)));
 
-        if (user.getStatus() == UserStatus.LOCKED) {
+        if (user.getStatus() == UserStatus.LOCKED || user.getStatus() == UserStatus.INACTIVE) {
             throw new ForbiddenException(
-                    "This account is locked. Request an account-unlock link to regain access.");
+                    "Account locked or inactive. Please request account access restoration to continue.");
         }
 
         if (passwordEncoder.matches(request.password(), user.getPassword())) {

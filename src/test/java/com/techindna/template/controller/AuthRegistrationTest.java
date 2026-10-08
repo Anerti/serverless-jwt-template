@@ -1,4 +1,4 @@
-package com.techindna.template.api;
+package com.techindna.template.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,10 +9,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.techindna.template.config.TestcontainersConfig;
 import com.techindna.template.dto.MessageResponse;
 import com.techindna.template.dto.auth.RegisterRequest;
+import com.techindna.template.dto.auth.VerificationResponse;
 import com.techindna.template.entity.email.EmailDetails;
 import com.techindna.template.entity.enums.UserRole;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
+import com.techindna.template.security.jwt.JwtTokenProvider;
 import com.techindna.template.service.mail.EmailService;
 import java.time.Instant;
 import java.util.Set;
@@ -49,6 +51,7 @@ class AuthRegistrationTest extends TestcontainersConfig {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redis;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @MockitoBean private EmailService emailService;
 
@@ -56,11 +59,13 @@ class AuthRegistrationTest extends TestcontainersConfig {
             TestRestTemplate restTemplate,
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
-            StringRedisTemplate redis) {
+            StringRedisTemplate redis,
+            JwtTokenProvider jwtTokenProvider) {
         this.restTemplate = restTemplate;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.redis = redis;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @BeforeEach
@@ -109,10 +114,59 @@ class AuthRegistrationTest extends TestcontainersConfig {
                 .containsEntry("email", EMAIL)
                 .containsEntry(
                         "verificationUrl",
-                        "http://localhost:8080/auth/verification/" + token)
+                        "http://localhost:8080/auth/verify/" + token)
                 .containsEntry("userAgent", "AuthRegistrationControllerTest/1.0");
         assertThat((String) email.getVariables().get("clientIp")).isNotBlank();
         assertThat(Instant.parse((String) email.getVariables().get("time"))).isNotNull();
+    }
+
+    @Test
+    void fullRegistrationProcessVerifiesEmailAndReturnsJwt() {
+        ResponseEntity<MessageResponse> registrationResponse = register(validRequest());
+
+        assertThat(registrationResponse.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        JUser user = userRepository.findAll().getFirst();
+        assertThat(user.getVerified()).isFalse();
+
+        Set<String> verificationKeys = redis.keys(VERIFICATION_KEY_PREFIX + "*");
+        assertThat(verificationKeys).hasSize(1);
+        String key = verificationKeys.iterator().next();
+        String verificationToken = key.substring(VERIFICATION_KEY_PREFIX.length());
+        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+
+        ResponseEntity<String> confirmationPage =
+                restTemplate.exchange(
+                        "/auth/verify/" + verificationToken,
+                        HttpMethod.GET,
+                        HttpEntity.EMPTY,
+                        String.class);
+
+        assertThat(confirmationPage.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(confirmationPage.getBody()).contains("method=\"post\"", "Confirm");
+        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getVerified()).isFalse();
+
+        ResponseEntity<VerificationResponse> verificationResponse =
+                restTemplate.exchange(
+                        "/auth/verify/" + verificationToken,
+                        HttpMethod.POST,
+                        new HttpEntity<>("", formRequestHeaders()),
+                        VerificationResponse.class);
+
+        assertThat(verificationResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(verificationResponse.getBody()).isNotNull();
+        assertThat(verificationResponse.getBody().user().id()).isEqualTo(user.getId());
+        assertThat(verificationResponse.getBody().user().username()).isEqualTo(USERNAME);
+        assertThat(verificationResponse.getBody().user().email()).isEqualTo(EMAIL);
+        assertThat(verificationResponse.getBody().user().role())
+                .isEqualTo(UserRole.CUSTOMER.name().toLowerCase());
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getVerified()).isTrue();
+        assertThat(redis.opsForValue().get(key)).isNull();
+
+        var claims = jwtTokenProvider.validateToken(verificationResponse.getBody().token());
+        assertThat(claims.getSubject()).isEqualTo(user.getId().toString());
+        assertThat(claims.get("role", String.class)).isEqualTo(UserRole.CUSTOMER.name());
+        assertThat(claims.get("ip_address", String.class)).isNotBlank();
     }
 
     @Test
@@ -337,6 +391,12 @@ class AuthRegistrationTest extends TestcontainersConfig {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         return new HttpEntity<>("", headers);
+    }
+
+    private HttpHeaders formRequestHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        return headers;
     }
 
     private RegisterRequest request(

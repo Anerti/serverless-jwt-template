@@ -79,11 +79,6 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
-    @ExceptionHandler(GoneException.class)
-    public ResponseEntity<ErrorBody> handleGone(GoneException ex) {
-        return buildResponse(HttpStatus.GONE, ex.getMessage());
-    }
-
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorBody> handleGeneral(Exception ex) {
         log.error("Unhandled exception", ex);

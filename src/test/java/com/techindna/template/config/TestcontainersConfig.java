@@ -6,28 +6,28 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.MountableFile;
 
-@Testcontainers
 public abstract class TestcontainersConfig {
 
     private static final String TEST_JWT_SECRET =
             Base64.getEncoder().encodeToString(new SecureRandom().generateSeed(48));
 
-    @Container
     private static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:16-alpine"))
                     .withCopyFileToContainer(
                             MountableFile.forClasspathResource("db/migration/V1__init.sql"),
                             "/docker-entrypoint-initdb.d/V1__init.sql");
 
-    @Container
     private static final GenericContainer<?> REDIS =
             new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
                     .withExposedPorts(6379);
+
+    static {
+        POSTGRES.start();
+        REDIS.start();
+    }
 
     @DynamicPropertySource
     static void configureTestContainers(DynamicPropertyRegistry registry) {

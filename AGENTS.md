@@ -4,47 +4,52 @@ Guidance for AI coding agents and contributors working in this repository.
 
 ## Project status
 
-This is a Spring Boot 4.1.1 JWT template with a partial security foundation and implemented
-registration and login-start flows. The source tree is authoritative for current behavior;
-`docs/api/api.yaml` describes the broader intended API and is not a list of implemented endpoints.
+This is a Spring Boot 4.1.1 JWT template with a working authentication foundation. The source tree
+is authoritative for current behavior; `docs/api/api.yaml` still describes the broader intended API
+surface and should not be treated as a checklist of already-implemented endpoints.
 
 Implemented:
 
 - `GET /syn`, a public plain-text health check
 - Stateless Spring Security with JWT bearer-token parsing and validation
-- JWT signing/verification support in `JwtTokenProvider`
+- JWT signing and verification support in `JwtTokenProvider`
 - Argon2 password hashing and a shared `ErrorBody` response envelope
 - `POST /auth/register`: input validation, canonicalized username/email, password hashing, user
   persistence, 15-minute Redis verification token, and HTML verification email
 - `POST /auth/login`: username-or-email and password validation, credential checking, failed-attempt
   tracking in Redis, account locking after five failures, and login-verification email for verified
   users with correct credentials
-- Synchronous SMTP sending; mail failures remove the associated Redis verification token and
-  surface as internal errors. Registration rolls back when its email fails.
-- PostgreSQL persistence model and repository
+- `GET /auth/verify/{token}`: public confirmation page for the one-time verification link
+- `POST /auth/verify/{token}`: consumes the verification token, marks the user verified, and issues a
+  JWT with user details
+- Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
+  internal errors. Registration rolls back when the email send fails.
+- PostgreSQL persistence model and repository layer
 
 Not implemented:
 
-- `GET /auth/verification/{token}`: although registration and login emails link to this path, no
-  handler consumes tokens. Registration cannot set `verified=true`, and login cannot complete or
-  issue a JWT through its email link.
-- JWT issuance through an authentication flow, token revocation, logout, account-unlock/recovery,
-  or any other `/auth/*` flow
+- Logout, JWT revocation or refresh, or any session-management flow
+- Account unlock/recovery, password reset, or email-change completion beyond the initial verification
 - User CRUD, account status/role enforcement, or admin authorization rules
+- Any broader app features implied by the OpenAPI contract but not yet wired into the application
 
-Registration saves users with `verified=false` and the persistence model's default
-`status=ACTIVE`; do not describe accounts as activated by this template. Login returns 202 after
-sending a login-verification email; it does not issue a token or establish an authenticated session.
-Five incorrect passwords for an existing account set its status to `LOCKED`; this lock has no
-implemented recovery path. Failed-login responses also differ for unknown users and incorrect
-passwords, so do not claim that login currently prevents account enumeration.
+Important behavioral notes:
+
+- Registration saves users with `verified=false`; do not describe the template as issuing a fully
+  activated account on signup.
+- Login returns `202 Accepted` after sending a verification email for valid verified users; it does not
+  establish a session or issue a token.
+- Five incorrect passwords for a known account set its persistent status to `LOCKED`. There is no
+  implemented recovery path.
+- Unknown identifiers and incorrect passwords intentionally produce different responses, so do not claim
+  the project currently hides account existence effectively.
 
 ## Stack and constraints
 
 - Java 25 toolchain; use the Gradle wrapper (`./gradlew`) and no system Gradle
 - Gradle 9.7.1, Spring Boot 4.1.1, Spring Security servlet stack
 - Spring Data JPA/Hibernate with PostgreSQL
-- Spring Data Redis and `StringRedisTemplate` for verification tokens
+- Spring Data Redis and `StringRedisTemplate` for verification and failed-login tracking
 - Spring Mail and Thymeleaf for HTML email
 - OpenAPI 3.0.3 contract at `docs/api/api.yaml`
 - No second HTTP stack, ORM, session/form-login auth system, or build tool
@@ -58,10 +63,9 @@ copying Boot 3 examples without checking them.
 build.gradle
 settings.gradle
 src/main/java/com/techindna/template/
-  api/                            HTTP endpoints (AuthController, SyncController)
-  config/                         application configuration
+  controller/                       HTTP endpoints (AuthController, SyncController)
   dto/                             request/response records
-  entity/                          domain types and email data
+  entity/                          domain types and email payloads
   exception/                       ErrorBody, advice, HTTP exceptions
   repository/                      Spring Data repositories
   repository/model/                JPA persistence models such as JUser
@@ -72,12 +76,12 @@ src/main/resources/
   application.properties
   db/migration/V1__init.sql         PostgreSQL schema setup script
   templates/mail/verification.html
-src/test/java/                      tests; TestcontainersConfig starts PostgreSQL and Redis
-  com/techindna/template/api/        AuthRegistrationTest and AuthLoginTest integration tests
+src/test/java/                     tests; TestcontainersConfig starts PostgreSQL and Redis
+  com/techindna/template/api/      AuthRegistrationTest and AuthLoginTest integration tests
 src/test/resources/application.properties
-docs/api/api.yaml                   OpenAPI contract
-docs/cdm.canvas                     data-model canvas
-.env                                optional local properties; git-ignored
+docs/api/api.yaml                 OpenAPI contract
+docs/cdm.canvas                   data-model canvas
+.env                              optional local properties; git-ignored
 ```
 
 `V1__init.sql` is a schema setup script; this project does not currently configure Flyway or
@@ -87,7 +91,7 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 
 ### Layers and models
 
-- Keep the HTTP layer in `api/` thin; use `api -> service -> repository`.
+- Keep the HTTP layer in `controller/` thin; use `controller -> service -> repository`.
 - Services own business logic and transaction boundaries; repositories own persistence queries.
 - Return DTOs from HTTP handlers, not entities or JPA models.
 - Keep domain types in `entity/` and JPA types in `repository/model/`; map between them in services.
@@ -95,10 +99,9 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 ### Validation and identity
 
 - Prefer record DTOs and keep wire field names camelCase.
-- Registration validation explicitly checks required fields and maximum lengths before format
-  checks.
-- Registration trims and lowercases username/email with `Locale.ROOT` before persistence. Preserve
-  this canonicalization when changing identity checks or persistence.
+- Registration validation explicitly checks required fields and maximum lengths before format checks.
+- Registration trims and lowercases username/email with `Locale.ROOT` before persistence. Preserve this
+  canonicalization when changing identity checks or storage.
 - The email format currently accepts multi-label domains and does not accept `+` in the local part.
 
 ### Errors and security
@@ -106,8 +109,8 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Application errors should use the shared `ErrorBody` envelope; do not return raw error strings or
   Spring's default error JSON.
 - Explicitly permit public routes in `SecurityConfig`; the chain otherwise requires authentication.
-- JWT claims are used for identity/role data. The filter binds a token to an IP and responds with
-  401 on IP mismatch. Invalid/expired JWTs continue anonymously so protected routes can return 401.
+- JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 401
+  on IP mismatch. Invalid/expired JWTs continue anonymously so protected routes can return 401.
 - Do not imply that a role claim is backed by endpoint-level role enforcement; none is currently
   configured.
 
@@ -115,19 +118,16 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 
 - Registration creates a user with `verified=false`, stores a verification token in Redis for 15
   minutes, and sends the verification template synchronously before returning 202.
-- Login accepts either username or email plus password. When both identifiers are present,
-  username takes precedence. Identity lookups use trimmed, lowercase values.
-- Correct credentials clear the login-attempt counter. Unverified users are then rejected; verified
-  users receive a login-verification email and a 202 response. The link is not currently
-  completable because the verification endpoint is not implemented.
-- Five password failures for a known user set its persistent status to `LOCKED`. Login-attempt
-  Redis keys currently have no expiry, and no unlock/recovery flow exists; do not imply temporary
-  lockout or recovery behavior.
-- Unknown identifiers return 401 with a fixed five-attempt message, while wrong passwords for
-  existing accounts return a decrementing attempt count. Locked accounts return 403. These
-  differing responses can disclose account existence.
-- On a mail failure, delete the corresponding Redis verification token and rethrow the mail
-  exception; do not report success.
+- Login accepts either username or email plus password. When both identifiers are present, username
+  takes precedence. Identity lookups use trimmed, lowercase values.
+- Correct credentials clear the login-attempt counter. Unverified users are rejected; verified users
+  receive a login-verification email and a 202 response.
+- Five password failures for a known user set the persistent `status` to `LOCKED`. Login-attempt Redis
+  keys currently have no expiry, and no unlock/recovery flow exists.
+- Unknown identifiers return 401 with a fixed five-attempt message, while wrong passwords for existing
+  accounts return a decrementing attempt count. Locked accounts return 403.
+- On a mail failure, delete the associated Redis verification token and rethrow the mail exception;
+  do not report success.
 - `EmailSenderService` renders `templates/mail/verification.html` with the supplied `EmailDetails`
   variables. Keep template variable names in sync with `AuthVerificationEmailService` and
   `VerificationEmailService`.
@@ -141,8 +141,7 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Root `.env` is an optional Spring properties file imported by `application.properties`; it is
   git-ignored. Do not print, commit, or copy its secrets.
 - Local runs require PostgreSQL, Redis, `app.jwt.secret`, and `app.base-url`. SMTP credentials are
-  needed for actual registration emails. Keep `application.properties` and test properties
-  secret-free.
+  needed for actual registration emails. Keep `application.properties` and test properties secret-free.
 - Tests use `src/test/resources/application.properties`; `TestcontainersConfig` supplies PostgreSQL,
   Redis, and a freshly generated JWT key.
 

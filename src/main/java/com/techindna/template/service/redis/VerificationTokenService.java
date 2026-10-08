@@ -28,4 +28,8 @@ public class VerificationTokenService {
     public void delete(String token) {
         redisTemplate.delete(KEY_PREFIX + token);
     }
+
+    public String consume(String token) {
+        return redisTemplate.opsForValue().getAndDelete(KEY_PREFIX + token);
+    }
 }
