@@ -47,8 +47,9 @@ public class VerificationService {
                         .findById(id)
                         .orElseThrow(() -> new UnauthorizedException(INVALID_TOKEN_MESSAGE));
 
-        if (user.getStatus() == UserStatus.LOCKED) {
-            throw new ForbiddenException("Account locked.");
+        if (user.getStatus() == UserStatus.LOCKED || user.getStatus() == UserStatus.INACTIVE) {
+            throw new ForbiddenException(
+                    "Account is locked or inactive. Please request account access restoration to continue.");
         }
 
         if (Boolean.FALSE.equals(user.getVerified())) {

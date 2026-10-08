@@ -167,9 +167,27 @@ class AuthVerificationTest extends TestcontainersConfig {
         ResponseEntity<String> response = verifyError(token);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(response.getBody()).contains("Account locked.");
+        assertThat(response.getBody())
+                .contains(
+                        "Account is locked or inactive. Please request account access restoration to continue.");
         assertThat(userRepository.findById(user.getId()).orElseThrow().getStatus())
                 .isEqualTo(UserStatus.LOCKED);
+        assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
+    }
+
+    @Test
+    void inactiveAccountCannotCompleteVerification() {
+        JUser user = saveUser(true, UserStatus.INACTIVE);
+        String token = verificationTokenService.createForUser(user.getId());
+
+        ResponseEntity<String> response = verifyError(token);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody())
+                .contains(
+                        "Account is locked or inactive. Please request account access restoration to continue.");
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getStatus())
+                .isEqualTo(UserStatus.INACTIVE);
         assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
     }
 
