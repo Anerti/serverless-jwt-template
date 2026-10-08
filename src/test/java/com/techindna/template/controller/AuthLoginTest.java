@@ -249,7 +249,7 @@ class AuthLoginTest extends TestcontainersConfig {
         ResponseEntity<String> subsequentResponse =
                 loginError(new LoginRequest(USERNAME, null, PASSWORD));
         assertThat(subsequentResponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(subsequentResponse.getBody()).contains("This account is locked");
+        assertThat(subsequentResponse.getBody()).contains("Account locked or inactive");
         verifyNoInteractions(emailService);
     }
 
@@ -347,20 +347,20 @@ class AuthLoginTest extends TestcontainersConfig {
     }
 
     @Test
-    void inactiveVerifiedUserCanCurrentlyStartLogin() {
+    void inactiveVerifiedUserCannotStartLogin() {
         JUser user = saveUser(true);
         user.setStatus(UserStatus.INACTIVE);
         userRepository.saveAndFlush(user);
 
-        ResponseEntity<MessageResponse> response =
-                restTemplate.exchange(
-                        "/auth/login",
-                        HttpMethod.POST,
-                        jsonRequest(new LoginRequest(USERNAME, null, PASSWORD)),
-                        MessageResponse.class);
+        ResponseEntity<String> response =
+                loginError(new LoginRequest(USERNAME, null, PASSWORD));
 
-        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
-        verify(emailService).sendMail(any(EmailDetails.class));
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(response.getBody()).contains("Account locked or inactive");
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getStatus())
+                .isEqualTo(UserStatus.INACTIVE);
+        assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
+        verifyNoInteractions(emailService);
     }
 
     @Test
