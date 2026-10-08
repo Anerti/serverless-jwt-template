@@ -82,79 +82,6 @@ paths:
                 message: Failed to send verification email
                 timestamp: 2026-07-20T15:00:00Z
 
-  /auth/verify/{token}:
-    get:
-      operationId: showVerificationConfirmation
-      summary: Display the verification confirmation page
-      description: >-
-        Displays a confirmation page without consuming the token or changing account state.
-        The user must submit the form, which sends POST /auth/verify/{token}, to complete
-        registration verification or confirm sign-in.
-      tags: [Auth]
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: UUID verification token sent by email
-      security: []
-      responses:
-        '200':
-          description: Confirmation page
-          content:
-            text/html:
-              schema:
-                type: string
-
-    post:
-      operationId: verifyRegistration
-      summary: Verify email or confirm sign-in
-      description: >-
-        Validates and consumes a one-time UUID verification token from the path, then returns
-        a JWT and user details. Registration tokens mark the user as verified; login tokens
-        complete sign-in for an already verified user. The token expires after 15 minutes.
-      tags: [Auth]
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: UUID verification token sent by email
-      security: []
-      responses:
-        '200':
-          description: Email verified or sign-in confirmed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VerifyRegistrationResponse'
-        '401':
-          description: Invalid or expired verification token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 401
-                error: Unauthorized
-                message: Invalid or expired token
-                timestamp: 2026-07-20T15:00:00Z
-        '403':
-          description: Account is locked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 403
-                error: FORBIDDEN
-                message: Account locked.
-                timestamp: 2026-07-20T15:00:00Z
-
   /auth/login:
     post:
       operationId: login
@@ -640,6 +567,80 @@ paths:
                 status: 401
                 error: Unauthorized
                 message: Missing or invalid authentication token
+                timestamp: 2026-07-20T15:00:00Z
+
+  # ──────────────── MFA ────────────────
+  /auth/verify/{token}:
+    get:
+      operationId: showVerificationConfirmation
+      summary: Display the verification confirmation page
+      description: >-
+        Displays a confirmation page without consuming the token or changing account state.
+        The user must submit the form, which sends POST /auth/verify/{token}, to complete
+        registration verification or confirm sign-in.
+      tags: [MFA]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID verification token sent by email
+      security: []
+      responses:
+        '200':
+          description: Confirmation page
+          content:
+            text/html:
+              schema:
+                type: string
+
+    post:
+      operationId: verifyRegistration
+      summary: Verify email or confirm sign-in
+      description: >-
+        Validates and consumes a one-time UUID verification token from the path, then returns
+        a JWT and user details. Registration tokens mark the user as verified; login tokens
+        complete sign-in for an already verified user. The token expires after 15 minutes.
+      tags: [MFA]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID verification token sent by email
+      security: []
+      responses:
+        '200':
+          description: Email verified or sign-in confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyRegistrationResponse'
+        '401':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid or expired token
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Account is locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: FORBIDDEN
+                message: Account locked.
                 timestamp: 2026-07-20T15:00:00Z
 
   # ──────────────── Users CRUD ────────────────
