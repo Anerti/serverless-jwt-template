@@ -52,26 +52,30 @@ public class DataValidator {
     }
 
     public void checkPasswordSecurityLevel(String password) {
-        checkNullData("password", password);
+        checkPasswordSecurityLevel("password", password, "Password");
+    }
+
+    public void checkPasswordSecurityLevel(String field, String password, String label) {
+        checkNullData(field, password);
 
         if (password.length() < 12) {
-            throw new UnprocessableContentException("Password must be at least 12 characters");
+            throw new UnprocessableContentException(label + " must be at least 12 characters");
         }
 
         if (!password.matches(".*[A-Z].*")) {
-            throw new UnprocessableContentException("Password must contain at least one uppercase character");
+            throw new UnprocessableContentException(label + " must contain at least one uppercase character");
         }
 
         if (!password.matches(".*[a-z].*")) {
-            throw new UnprocessableContentException("Password must contain at least one lowercase character");
+            throw new UnprocessableContentException(label + " must contain at least one lowercase character");
         }
 
         if (!password.matches(".*[0-9].*")) {
-            throw new UnprocessableContentException("Password must contain at least one digit");
+            throw new UnprocessableContentException(label + " must contain at least one digit");
         }
 
         if (!password.matches(".*[!?*+=@#$%^&()_\\-\\[\\]{}|\\\\:;\"'<>,./`~].*")) {
-            throw new UnprocessableContentException("Password must contain at least one special character");
+            throw new UnprocessableContentException(label + " must contain at least one special character");
         }
     }
 }

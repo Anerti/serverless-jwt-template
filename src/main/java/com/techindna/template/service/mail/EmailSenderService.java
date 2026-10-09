@@ -69,6 +69,7 @@ public class EmailSenderService implements EmailService {
         return switch (template) {
             case REGISTRATION_VERIFICATION -> "mail/registration-verification";
             case LOGIN_VERIFICATION -> "mail/login-verification";
+            case PASSWORD_CHANGE_NOTIFICATION -> "mail/password-change-notification";
         };
     }
 }

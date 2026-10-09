@@ -1,9 +1,11 @@
 package com.techindna.template.controller;
 
 import com.techindna.template.dto.MessageResponse;
+import com.techindna.template.dto.auth.ChangePasswordRequest;
 import com.techindna.template.dto.auth.LoginRequest;
 import com.techindna.template.dto.auth.RegisterRequest;
 import com.techindna.template.dto.auth.VerificationResponse;
+import com.techindna.template.service.auth.ChangePasswordService;
 import com.techindna.template.service.auth.LoginService;
 import com.techindna.template.service.auth.RegistrationService;
 import com.techindna.template.service.auth.VerificationService;
@@ -15,6 +17,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -26,6 +29,7 @@ public class AuthController {
     private final RegistrationService registrationService;
     private final LoginService loginService;
     private final VerificationService verificationService;
+    private final ChangePasswordService changePasswordService;
     private final VerificationTokenService verificationTokenService;
 
     @PostMapping("/register")
@@ -40,6 +44,15 @@ public class AuthController {
             @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
         return ResponseEntity.status(HttpStatus.ACCEPTED)
                 .body(loginService.login(request, servletRequest));
+    }
+
+    @PostMapping("/change-password")
+    public MessageResponse changePassword(
+            Authentication authentication,
+            @RequestBody ChangePasswordRequest request,
+            HttpServletRequest servletRequest) {
+        return changePasswordService.changePassword(
+                authentication.getName(), request, servletRequest);
     }
 
     @GetMapping("/verify/{token}")

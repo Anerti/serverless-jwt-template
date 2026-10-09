@@ -79,6 +79,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
+    @ExceptionHandler(InternalServerErrorException.class)
+    public ResponseEntity<ErrorBody> handleInternalServerError(InternalServerErrorException ex) {
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorBody> handleGeneral(Exception ex) {
         log.error("Unhandled exception", ex);
