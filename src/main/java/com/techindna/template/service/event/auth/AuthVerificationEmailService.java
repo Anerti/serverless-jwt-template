@@ -2,6 +2,7 @@ package com.techindna.template.service.event.auth;
 
 import com.techindna.template.entity.email.EmailTemplate;
 import com.techindna.template.repository.model.JUser;
+import com.techindna.template.service.enums.VerificationFlow;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
@@ -19,6 +20,7 @@ public class AuthVerificationEmailService {
         verificationEmailService.sendVerification(
                 user,
                 request,
+                VerificationFlow.REGISTER,
                 EmailTemplate.REGISTRATION_VERIFICATION,
                 "Verify your account",
                 "Open the following link, then select Confirm to verify your account:",
@@ -33,6 +35,7 @@ public class AuthVerificationEmailService {
         verificationEmailService.sendVerification(
                 user,
                 request,
+                VerificationFlow.LOGIN,
                 EmailTemplate.LOGIN_VERIFICATION,
                 "Verify your login",
                 "Open the following link, then select Confirm to verify your login:",

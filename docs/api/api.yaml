@@ -30,7 +30,7 @@ paths:
     post:
       operationId: register
       summary: Register a new user account (pending verification)
-      description: Validates the registration data, saves the user with verified=false, generates a UUID verification token stored in Redis, and sends a verification link by email. Opening the link displays a confirmation page; the user must submit its form with POST /auth/verify/{token} before logging in. The token expires after 15 minutes.
+      description: Validates the registration data, saves the user with verified=false, generates a UUID verification token stored in Redis, and sends a verification link by email. Opening the link displays a confirmation page; the user must submit its form to POST /auth/mfa/confirm/register/{token} before logging in. The token expires after 15 minutes.
       tags: [Auth]
       requestBody:
         required: true
@@ -82,79 +82,6 @@ paths:
                 message: Failed to send verification email
                 timestamp: 2026-07-20T15:00:00Z
 
-  /auth/verify/{token}:
-    get:
-      operationId: showVerificationConfirmation
-      summary: Display the verification confirmation page
-      description: >-
-        Displays a confirmation page without consuming the token or changing account state.
-        The user must submit the form, which sends POST /auth/verify/{token}, to complete
-        registration verification or confirm sign-in.
-      tags: [Auth]
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: UUID verification token sent by email
-      security: []
-      responses:
-        '200':
-          description: Confirmation page
-          content:
-            text/html:
-              schema:
-                type: string
-
-    post:
-      operationId: verifyRegistration
-      summary: Verify email or confirm sign-in
-      description: >-
-        Validates and consumes a one-time UUID verification token from the path, then returns
-        a JWT and user details. Registration tokens mark the user as verified; login tokens
-        complete sign-in for an already verified user. The token expires after 15 minutes.
-      tags: [Auth]
-      parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-          description: UUID verification token sent by email
-      security: []
-      responses:
-        '200':
-          description: Email verified or sign-in confirmed
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VerifyRegistrationResponse'
-        '401':
-          description: Invalid or expired verification token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 401
-                error: Unauthorized
-                message: Invalid or expired token
-                timestamp: 2026-07-20T15:00:00Z
-        '403':
-          description: Account is locked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 403
-                error: FORBIDDEN
-                message: Account locked.
-                timestamp: 2026-07-20T15:00:00Z
-
   /auth/login:
     post:
       operationId: login
@@ -164,7 +91,7 @@ paths:
         rejects banned hosts, generates a UUID verification token stored in Redis, and sends a
         verification link by email. The token expires after 15 minutes. Opening the link
         displays a confirmation page; submit its form to complete login with
-        POST /auth/verify/{token}.
+        POST /auth/mfa/confirm/login/{token}.
       tags: [Auth]
       requestBody:
         required: true
@@ -267,8 +194,10 @@ paths:
       description: >-
         Generates a new UUID verification token and sends a verification email
         for the given flow. The token expires after 15 minutes. Complete the
-        flow by opening the link and submitting the confirmation form with
-        POST /auth/verify/{token}.
+        flow by opening the link and submitting the confirmation form to the
+        endpoint for that flow: POST /auth/mfa/confirm/register/{token},
+        POST /auth/mfa/confirm/login/{token}, or
+        POST /auth/mfa/confirm/change-email/{token}.
       tags: [Auth]
       parameters:
         - name: email
@@ -443,7 +372,7 @@ paths:
     post:
       operationId: changeEmail
       summary: Request an email change
-      description: Validates the caller's current credentials (username or email + password), generates a UUID verification token stored in Redis, and sends a confirmation link by email to the new address. The token expires after 15 minutes. Opening the link displays a confirmation page; submit its form to complete the email change via POST /auth/verify/{token}. The old email remains in use until the new address is verified. This endpoint requires authentication.
+      description: Validates the caller's current credentials (username or email + password), generates a         UUID verification token stored in Redis, and sends a confirmation link by email to the new address. The token expires after 15 minutes. Opening the link displays a confirmation page; submit its form to POST /auth/mfa/confirm/change-email/{token} to complete the email change. The old email remains in use until the new address is verified. This endpoint requires authentication.
       tags: [Auth]
       security:
         - bearerAuth: []
@@ -524,8 +453,8 @@ paths:
       summary: Request to unlock a locked user account
       description: >-
         Public recovery endpoint. Submit the email of a LOCKED account to receive an
-        unlock link by email; open the link and submit its confirmation form via
-        POST /auth/verify/{token}. Returns
+        unlock link by email; open the link and submit its confirmation form to
+        complete the unlock. Returns
         403 if the account is not found or not locked, and 422 if the email is invalid.
       tags: [Auth]
       requestBody:
@@ -640,6 +569,189 @@ paths:
                 status: 401
                 error: Unauthorized
                 message: Missing or invalid authentication token
+                timestamp: 2026-07-20T15:00:00Z
+
+  # ──────────────── MFA ────────────────
+  /auth/verify/{token}:
+    get:
+      operationId: showVerificationConfirmation
+      summary: Display the verification confirmation page
+      description: >-
+        Displays a confirmation page without consuming the token or changing account state.
+        The user must submit the form to the confirmation endpoint for the flow:
+        POST /auth/mfa/confirm/register/{token} or POST /auth/mfa/confirm/login/{token}.
+      tags: [MFA]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID verification token sent by email
+      security: []
+      responses:
+        '200':
+          description: Confirmation page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /auth/mfa/confirm/register/{token}:
+    post:
+      operationId: confirmRegistration
+      summary: Verify registration email
+      description: >-
+        Validates and consumes a one-time UUID registration token from the path, marks the
+        user as verified, and returns a JWT and user details. The token expires after
+        15 minutes.
+      tags: [MFA]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID registration verification token sent by email
+      security: []
+      responses:
+        '200':
+          description: Registration email verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyRegistrationResponse'
+        '401':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid or expired token
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Account is locked or inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Account is locked or inactive. Please request account access restoration to continue.
+                timestamp: 2026-07-20T15:00:00Z
+
+  /auth/mfa/confirm/login/{token}:
+    post:
+      operationId: confirmLogin
+      summary: Confirm sign-in
+      description: >-
+        Validates and consumes a one-time UUID login token from the path, then returns
+        a JWT and user details for the already verified user. The token expires after
+        15 minutes.
+      tags: [MFA]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID login verification token sent by email
+      security: []
+      responses:
+        '200':
+          description: Sign-in confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyRegistrationResponse'
+        '401':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid or expired token
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Account is locked, inactive, or not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                accountLocked:
+                  summary: Account locked or inactive
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Account is locked or inactive. Please request account access restoration to continue.
+                    timestamp: 2026-07-20T15:00:00Z
+                accountNotVerified:
+                  summary: Account not yet verified
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Verify your email address before signing in.
+                    timestamp: 2026-07-20T15:00:00Z
+
+  /auth/mfa/confirm/change-email/{token}:
+    post:
+      operationId: confirmEmailChange
+      summary: Confirm email change
+      description: >-
+        Validates and consumes a one-time UUID change-email token from the path and
+        switches the account's address to the new email. The token expires after
+        15 minutes.
+      tags: [MFA]
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: UUID change-email verification token sent to the new address
+      security: []
+      responses:
+        '200':
+          description: Email address changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageBody'
+              example:
+                message: Email address changed successfully
+        '401':
+          description: Invalid or expired verification token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Invalid or expired token
+                timestamp: 2026-07-20T15:00:00Z
+        '409':
+          description: The new email is already in use by another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 409
+                error: Conflict
+                message: This email address is already in use
                 timestamp: 2026-07-20T15:00:00Z
 
   # ──────────────── Users CRUD ────────────────

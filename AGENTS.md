@@ -19,9 +19,12 @@ Implemented:
 - `POST /auth/login`: username-or-email and password validation, credential checking, failed-attempt
   tracking in Redis, account locking after five failures, and login-verification email for verified
   users with correct credentials
-- `GET /auth/verify/{token}`: public confirmation page for the one-time verification link
-- `POST /auth/verify/{token}`: consumes the verification token, marks the user verified, and issues a
-  JWT with user details
+- `GET /auth/verify/{token}`: public confirmation page for the one-time verification link; it routes
+  the form to the MFA confirmation endpoint for the token's flow
+- `POST /auth/mfa/confirm/register/{token}`: consumes a registration token, marks the user verified,
+  and issues a JWT with user details
+- `POST /auth/mfa/confirm/login/{token}`: consumes a login token for a verified user (2FA) and issues
+  a JWT with user details
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
   internal errors. Registration rolls back when the email send fails.
 - PostgreSQL persistence model and repository layer
@@ -122,6 +125,9 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
   takes precedence. Identity lookups use trimmed, lowercase values.
 - Correct credentials clear the login-attempt counter. Unverified users are rejected; verified users
   receive a login-verification email and a 202 response.
+- Verification tokens are scoped to a `VerificationFlow` (`REGISTER` or `LOGIN`) stored in Redis.
+  `GET /auth/verify/{token}` reads the flow to route the confirmation form, and each
+  `/auth/mfa/confirm/{register|login}/{token}` endpoint consumes only tokens matching its flow.
 - Five password failures for a known user set the persistent `status` to `LOCKED`. Login-attempt Redis
   keys currently have no expiry, and no unlock/recovery flow exists.
 - Unknown identifiers return 401 with a fixed five-attempt message, while wrong passwords for existing

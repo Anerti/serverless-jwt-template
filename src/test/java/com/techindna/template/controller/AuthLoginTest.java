@@ -99,7 +99,8 @@ class AuthLoginTest extends TestcontainersConfig {
         assertThat(verificationKeys).hasSize(1);
         String key = verificationKeys.iterator().next();
         String token = key.substring(VERIFICATION_KEY_PREFIX.length());
-        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+        assertThat(redis.opsForValue().get(key))
+                .isEqualTo("LOGIN:" + user.getId());
 
         ArgumentCaptor<EmailDetails> emailCaptor = ArgumentCaptor.forClass(EmailDetails.class);
         verify(emailService).sendMail(emailCaptor.capture());
@@ -146,7 +147,8 @@ class AuthLoginTest extends TestcontainersConfig {
         assertThat(verificationKeys).hasSize(1);
         String key = verificationKeys.iterator().next();
         String verificationToken = key.substring(VERIFICATION_KEY_PREFIX.length());
-        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+        assertThat(redis.opsForValue().get(key))
+                .isEqualTo("LOGIN:" + user.getId());
 
         ResponseEntity<String> confirmationPage =
                 restTemplate.exchange(
@@ -156,12 +158,15 @@ class AuthLoginTest extends TestcontainersConfig {
                         String.class);
 
         assertThat(confirmationPage.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(confirmationPage.getBody()).contains("method=\"post\"", "Confirm");
-        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+        assertThat(confirmationPage.getBody())
+                .contains("method=\"post\"", "Confirm")
+                .contains("/auth/mfa/confirm/login/" + verificationToken);
+        assertThat(redis.opsForValue().get(key))
+                .isEqualTo("LOGIN:" + user.getId());
 
         ResponseEntity<VerificationResponse> verificationResponse =
                 restTemplate.exchange(
-                        "/auth/verify/" + verificationToken,
+                        "/auth/mfa/confirm/login/" + verificationToken,
                         HttpMethod.POST,
                         new HttpEntity<>("", formRequestHeaders()),
                         VerificationResponse.class);
@@ -207,7 +212,7 @@ class AuthLoginTest extends TestcontainersConfig {
         Set<String> verificationKeys = redis.keys(VERIFICATION_KEY_PREFIX + "*");
         assertThat(verificationKeys).hasSize(1);
         assertThat(redis.opsForValue().get(verificationKeys.iterator().next()))
-                .isEqualTo(usernameUser.getId().toString());
+                .isEqualTo("LOGIN:" + usernameUser.getId());
         ArgumentCaptor<EmailDetails> emailCaptor = ArgumentCaptor.forClass(EmailDetails.class);
         verify(emailService).sendMail(emailCaptor.capture());
         assertThat(emailCaptor.getValue().getRecipient()).isEqualTo(EMAIL);
