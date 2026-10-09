@@ -1,5 +1,6 @@
 package com.techindna.template.validator;
 
+import com.techindna.template.dto.auth.ChangePasswordRequest;
 import com.techindna.template.dto.auth.LoginRequest;
 import com.techindna.template.dto.auth.RegisterRequest;
 import com.techindna.template.exception.http.UnprocessableContentException;
@@ -54,5 +55,16 @@ public class AuthValidator {
             dataValidator.validateEmail(request.email());
         }
         dataValidator.checkNullData("password", request.password());
+    }
+
+    public void validateChangePassword(ChangePasswordRequest request) {
+        dataValidator.checkNullData("oldPassword", request.oldPassword());
+        dataValidator.checkPasswordSecurityLevel(
+                "newPassword", request.newPassword(), "New password");
+        dataValidator.checkNullData("confirmNewPassword", request.confirmNewPassword());
+
+        if (!request.newPassword().equals(request.confirmNewPassword())) {
+            throw new UnprocessableContentException("Passwords do not match");
+        }
     }
 }

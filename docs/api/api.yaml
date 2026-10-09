@@ -294,7 +294,7 @@ paths:
     post:
       operationId: changePassword
       summary: Change the authenticated user's password
-      description: Validates the caller's current credentials (username or email + current password), confirms the new password matches the confirmation field, and changes the password immediately — no verification link or click is required. An email notification is sent to the account's registered address informing the user that the password was changed, including the client IP, user agent, city, country, and timestamp of the change. This endpoint requires authentication.
+      description: Validates the caller's current credentials (username or email + current password), confirms the new password matches the confirmation field, and changes the password immediately — no verification link or click is required. An email notification is sent to the account's registered address informing the user that the password was changed, including the client IP, user agent, and timestamp of the change. This endpoint requires authentication.
       tags: [Auth]
       security:
         - bearerAuth: []
@@ -343,7 +343,7 @@ paths:
                   value:
                     status: 422
                     error: Unprocessable Entity
-                    message: New password and confirmation do not match
+                    message: Passwords do not match
                     timestamp: 2026-07-20T15:00:00Z
         '403':
           description: Account not verified or business rule violation
