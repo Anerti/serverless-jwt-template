@@ -100,7 +100,8 @@ class AuthRegistrationTest extends TestcontainersConfig {
         assertThat(keys).hasSize(1);
         String key = keys.iterator().next();
         String token = key.substring(VERIFICATION_KEY_PREFIX.length());
-        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+        assertThat(redis.opsForValue().get(key))
+                .isEqualTo("REGISTER:" + user.getId());
 
         ArgumentCaptor<EmailDetails> emailCaptor = ArgumentCaptor.forClass(EmailDetails.class);
         verify(emailService).sendMail(emailCaptor.capture());
@@ -132,7 +133,8 @@ class AuthRegistrationTest extends TestcontainersConfig {
         assertThat(verificationKeys).hasSize(1);
         String key = verificationKeys.iterator().next();
         String verificationToken = key.substring(VERIFICATION_KEY_PREFIX.length());
-        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+        assertThat(redis.opsForValue().get(key))
+                .isEqualTo("REGISTER:" + user.getId());
 
         ResponseEntity<String> confirmationPage =
                 restTemplate.exchange(
@@ -142,13 +144,16 @@ class AuthRegistrationTest extends TestcontainersConfig {
                         String.class);
 
         assertThat(confirmationPage.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(confirmationPage.getBody()).contains("method=\"post\"", "Confirm");
-        assertThat(redis.opsForValue().get(key)).isEqualTo(user.getId().toString());
+        assertThat(confirmationPage.getBody())
+                .contains("method=\"post\"", "Confirm")
+                .contains("/auth/mfa/confirm/register/" + verificationToken);
+        assertThat(redis.opsForValue().get(key))
+                .isEqualTo("REGISTER:" + user.getId());
         assertThat(userRepository.findById(user.getId()).orElseThrow().getVerified()).isFalse();
 
         ResponseEntity<VerificationResponse> verificationResponse =
                 restTemplate.exchange(
-                        "/auth/verify/" + verificationToken,
+                        "/auth/mfa/confirm/register/" + verificationToken,
                         HttpMethod.POST,
                         new HttpEntity<>("", formRequestHeaders()),
                         VerificationResponse.class);

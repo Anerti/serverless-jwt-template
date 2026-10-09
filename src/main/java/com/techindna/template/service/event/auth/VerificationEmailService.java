@@ -4,6 +4,7 @@ import com.techindna.template.entity.email.EmailDetails;
 import com.techindna.template.entity.email.EmailTemplate;
 import com.techindna.template.repository.model.JUser;
 import com.techindna.template.service.mail.EmailService;
+import com.techindna.template.service.enums.VerificationFlow;
 import com.techindna.template.service.redis.VerificationTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
@@ -26,12 +27,13 @@ public class VerificationEmailService {
     public void sendVerification(
             JUser user,
             HttpServletRequest request,
+            VerificationFlow flow,
             EmailTemplate template,
             String subject,
             String body,
             String time,
             Map<String, Object> additionalVariables) {
-        String token = verificationTokenService.createForUser(user.getId());
+        String token = verificationTokenService.createForUser(user.getId(), flow);
         String verificationLink =
                 baseUrl.replaceAll("/+$", "") + "/auth/verify/" + token;
 

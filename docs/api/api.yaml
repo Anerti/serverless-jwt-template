@@ -634,6 +634,17 @@ paths:
                 error: Unauthorized
                 message: Invalid or expired token
                 timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Account is locked or inactive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Account is locked or inactive. Please request account access restoration to continue.
+                timestamp: 2026-07-20T15:00:00Z
 
   /auth/mfa/confirm/login/{token}:
     post:
@@ -672,16 +683,26 @@ paths:
                 message: Invalid or expired token
                 timestamp: 2026-07-20T15:00:00Z
         '403':
-          description: Account is locked
+          description: Account is locked, inactive, or not verified
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 403
-                error: FORBIDDEN
-                message: Account locked.
-                timestamp: 2026-07-20T15:00:00Z
+              examples:
+                accountLocked:
+                  summary: Account locked or inactive
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Account is locked or inactive. Please request account access restoration to continue.
+                    timestamp: 2026-07-20T15:00:00Z
+                accountNotVerified:
+                  summary: Account not yet verified
+                  value:
+                    status: 403
+                    error: Forbidden
+                    message: Verify your email address before signing in.
+                    timestamp: 2026-07-20T15:00:00Z
 
   /auth/mfa/confirm/change-email/{token}:
     post:

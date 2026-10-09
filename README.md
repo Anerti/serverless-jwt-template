@@ -20,7 +20,8 @@ service rather than a complete user-management or RBAC platform.
 | `POST /auth/register` | Implemented |
 | `POST /auth/login` | Implemented |
 | `GET /auth/verify/{token}` | Implemented |
-| `POST /auth/verify/{token}` | Implemented |
+| `POST /auth/mfa/confirm/register/{token}` | Implemented |
+| `POST /auth/mfa/confirm/login/{token}` | Implemented |
 | Logout, token revocation, account unlock/recovery, bulk user management | Not implemented |
 | Role-based endpoint authorization and admin-only flows | Not implemented |
 
@@ -101,8 +102,9 @@ syn-ack
 | `GET` | `/syn` | Public | Returns `syn-ack` |
 | `POST` | `/auth/register` | Public | Validates and saves an unverified user, creates a 15-minute verification token, and sends the HTML verification email |
 | `POST` | `/auth/login` | Public | Accepts username-or-email + password, rejects locked/inactive accounts, clears failed attempts on success, and sends a verification email for valid verified users |
-| `GET` | `/auth/verify/{token}` | Public | Shows the confirmation page with the token |
-| `POST` | `/auth/verify/{token}` | Public | Consumes the one-time token, marks the user verified, and issues a JWT |
+| `GET` | `/auth/verify/{token}` | Public | Shows the confirmation page and routes its form to the confirmation endpoint for the token's flow |
+| `POST` | `/auth/mfa/confirm/register/{token}` | Public | Consumes a registration token, marks the user verified, and issues a JWT |
+| `POST` | `/auth/mfa/confirm/login/{token}` | Public | Consumes a login token for a verified user and issues a JWT (2FA) |
 
 Register with curlie:
 
@@ -118,12 +120,14 @@ curlie POST localhost:8080/auth/register \
 
 Registration returns `202 Accepted` after the synchronous SMTP send succeeds. If sending fails, the
 request returns the shared internal-error response and the database transaction rolls back; the
-verification token is also deleted. The corresponding email links to `/auth/verify/{token}`. The user
-must submit the token to the POST verification endpoint to complete verification.
+verification token is also deleted. The corresponding email links to `/auth/verify/{token}`. The
+confirmation page routes the form to `POST /auth/mfa/confirm/register/{token}` to complete
+registration.
 
 Login follows the same pattern, but it does not establish a session or return a token. On correct
 credentials it clears the failed-attempt counter and, if the account is already verified, sends a
-login-verification email and returns `202 Accepted`.
+login-verification email and returns `202 Accepted`. The confirmation page routes the form to
+`POST /auth/mfa/confirm/login/{token}`, which completes the two-factor login and returns a JWT.
 
 Registration rules include a password of at least 12 characters containing uppercase, lowercase,
 digit, and special characters; username length 2–50; first/last name maximum 100; and email maximum
@@ -149,7 +153,8 @@ errors use the shared `ErrorBody` envelope:
 ## Security foundation
 
 The application uses a stateless Spring Security filter chain. Public routes are explicitly allowed
-for `/syn`, `/auth/register`, `/auth/login`, and `/auth/verify/*`; other requests require
+for `/syn`, `/auth/register`, `/auth/login`, `GET /auth/verify/*`, and
+`POST /auth/mfa/confirm/register/*` and `POST /auth/mfa/confirm/login/*`; other requests require
 authentication. The JWT filter validates signature and expiration, reads subject/role/IP claims,
 and checks the request IP against the token's IP claim. Invalid/expired tokens continue anonymously;
 an IP mismatch returns 401.

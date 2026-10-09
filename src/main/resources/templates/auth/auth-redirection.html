@@ -88,7 +88,7 @@
         </header>
         <section>
             <p>Confirm below to verify your email address or complete your sign-in.</p>
-            <form method="post" th:action="@{/auth/verify/{token}(token=${token})}">
+            <form method="post" th:action="${flow == 'REGISTER'} ? @{/auth/mfa/confirm/register/{token}(token=${token})} : @{/auth/mfa/confirm/login/{token}(token=${token})}">
                 <button type="submit">Confirm request</button>
             </form>
         </section>

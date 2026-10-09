@@ -7,6 +7,8 @@ import com.techindna.template.dto.auth.VerificationResponse;
 import com.techindna.template.service.auth.LoginService;
 import com.techindna.template.service.auth.RegistrationService;
 import com.techindna.template.service.auth.VerificationService;
+import com.techindna.template.service.enums.VerificationFlow;
+import com.techindna.template.service.redis.VerificationTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Map;
@@ -24,6 +26,7 @@ public class AuthController {
     private final RegistrationService registrationService;
     private final LoginService loginService;
     private final VerificationService verificationService;
+    private final VerificationTokenService verificationTokenService;
 
     @PostMapping("/register")
     public ResponseEntity<MessageResponse> register(
@@ -44,12 +47,24 @@ public class AuthController {
             @PathVariable String token, HttpServletResponse servletResponse) {
         servletResponse.setHeader("Cache-Control", "no-store");
         servletResponse.setHeader("Referrer-Policy", "no-referrer");
-        return new ModelAndView("auth/auth-redirection", Map.of("token", token));
+        VerificationFlow flow = verificationTokenService.flowOf(token);
+        return new ModelAndView(
+                "auth/auth-redirection",
+                Map.of(
+                        "token", token,
+                        "flow",
+                                (flow == null ? VerificationFlow.REGISTER : flow).name()));
     }
 
-    @PostMapping("/verify/{token}")
-    public VerificationResponse verify(
+    @PostMapping("/mfa/confirm/register/{token}")
+    public VerificationResponse confirmRegistration(
             @PathVariable String token, HttpServletRequest servletRequest) {
-        return verificationService.verify(token, servletRequest);
+        return verificationService.confirmRegistration(token, servletRequest);
+    }
+
+    @PostMapping("/mfa/confirm/login/{token}")
+    public VerificationResponse confirmLogin(
+            @PathVariable String token, HttpServletRequest servletRequest) {
+        return verificationService.confirmLogin(token, servletRequest);
     }
 }
