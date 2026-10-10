@@ -19,4 +19,10 @@ public final class RBACRules {
             throw new ForbiddenException("Cannot access this resource.");
         }
     }
+
+    public static void requireOwner(UUID requesterId, UUID ownerId) {
+        if (requesterId == null || !requesterId.equals(ownerId)) {
+            throw new ForbiddenException("Cannot access this resource.");
+        }
+    }
 }
