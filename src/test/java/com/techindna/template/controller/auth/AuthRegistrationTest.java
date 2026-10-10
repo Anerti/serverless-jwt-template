@@ -1,4 +1,4 @@
-package com.techindna.template.controller;
+package com.techindna.template.controller.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
