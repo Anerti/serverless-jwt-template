@@ -26,8 +26,8 @@ Implemented:
 - `POST /auth/mfa/confirm/login/{token}`: consumes a login token for a verified user (2FA) and issues
   a JWT with user details
 - `POST /auth/change-password`: authenticated endpoint that verifies the caller's current password,
-  confirms the new password, updates it immediately, and emails a password-change notification with
-  the client IP, user agent, and timestamp
+  rejects reusing it as the new password, confirms the new password, updates it immediately, and
+  emails a password-change notification with the client IP, user agent, and timestamp
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
   internal errors. Registration and change-password roll back when the email send fails.
 - PostgreSQL persistence model and repository layer
@@ -115,7 +115,7 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Application errors should use the shared `ErrorBody` envelope; do not return raw error strings or
   Spring's default error JSON.
 - Explicitly permit public routes in `SecurityConfig`; the chain otherwise requires authentication.
-- JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 401
+- JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 403
   on IP mismatch. Invalid/expired JWTs continue anonymously so protected routes can return 401.
 - Do not imply that a role claim is backed by endpoint-level role enforcement; none is currently
   configured.

@@ -6,7 +6,7 @@ import com.techindna.template.exception.http.ForbiddenException;
 import com.techindna.template.exception.http.UnauthorizedException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
-import com.techindna.template.security.jwt.ClientIpAddressResolver;
+import com.techindna.template.security.ClientIpAddressResolver;
 import com.techindna.template.security.jwt.JwtTokenProvider;
 import com.techindna.template.service.mapper.UserMapper;
 import com.techindna.template.service.enums.VerificationFlow;

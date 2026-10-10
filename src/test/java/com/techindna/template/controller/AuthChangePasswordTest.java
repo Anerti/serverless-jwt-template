@@ -215,6 +215,89 @@ class AuthChangePasswordTest extends TestcontainersConfig {
         assertThat(passwordEncoder.matches(NEW_PASSWORD, reload(user).getPassword())).isFalse();
     }
 
+    @Test
+    void reusingCurrentPasswordReturnsUnprocessableContent() {
+        JUser user = saveUser(true, UserStatus.ACTIVE);
+
+        ResponseEntity<String> response =
+                change(
+                        new ChangePasswordRequest(OLD_PASSWORD, OLD_PASSWORD, OLD_PASSWORD),
+                        tokenFor(user),
+                        String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+        assertThat(response.getBody())
+                .contains("New password must differ from the current password");
+        assertThat(passwordEncoder.matches(OLD_PASSWORD, reload(user).getPassword())).isTrue();
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void newPasswordWithoutUppercaseReturnsUnprocessableContent() {
+        JUser user = saveUser(true, UserStatus.ACTIVE);
+
+        ResponseEntity<String> response =
+                change(
+                        new ChangePasswordRequest(
+                                OLD_PASSWORD, "lowercase1234!", "lowercase1234!"),
+                        tokenFor(user),
+                        String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+        assertThat(response.getBody())
+                .contains("New password must contain at least one uppercase character");
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void newPasswordWithoutLowercaseReturnsUnprocessableContent() {
+        JUser user = saveUser(true, UserStatus.ACTIVE);
+
+        ResponseEntity<String> response =
+                change(
+                        new ChangePasswordRequest(
+                                OLD_PASSWORD, "UPPERCASE1234!", "UPPERCASE1234!"),
+                        tokenFor(user),
+                        String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+        assertThat(response.getBody())
+                .contains("New password must contain at least one lowercase character");
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void newPasswordWithoutDigitReturnsUnprocessableContent() {
+        JUser user = saveUser(true, UserStatus.ACTIVE);
+
+        ResponseEntity<String> response =
+                change(
+                        new ChangePasswordRequest(OLD_PASSWORD, "UppercasePass!", "UppercasePass!"),
+                        tokenFor(user),
+                        String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+        assertThat(response.getBody())
+                .contains("New password must contain at least one digit");
+        verifyNoInteractions(emailService);
+    }
+
+    @Test
+    void newPasswordWithoutSpecialCharacterReturnsUnprocessableContent() {
+        JUser user = saveUser(true, UserStatus.ACTIVE);
+
+        ResponseEntity<String> response =
+                change(
+                        new ChangePasswordRequest(OLD_PASSWORD, "Uppercasepass12", "Uppercasepass12"),
+                        tokenFor(user),
+                        String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+        assertThat(response.getBody())
+                .contains("New password must contain at least one special character");
+        verifyNoInteractions(emailService);
+    }
+
     private ChangePasswordRequest validRequest() {
         return new ChangePasswordRequest(OLD_PASSWORD, NEW_PASSWORD, NEW_PASSWORD);
     }

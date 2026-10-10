@@ -5,8 +5,10 @@ import com.techindna.template.dto.auth.ChangePasswordRequest;
 import com.techindna.template.entity.enums.UserStatus;
 import com.techindna.template.exception.http.ForbiddenException;
 import com.techindna.template.exception.http.UnauthorizedException;
+import com.techindna.template.exception.http.UnprocessableContentException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
+import com.techindna.template.security.RBACRules;
 import com.techindna.template.service.event.auth.PasswordChangeNotificationService;
 import com.techindna.template.validator.AuthValidator;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +35,7 @@ public class ChangePasswordService {
         authValidator.validateChangePassword(request);
 
         JUser user = resolveUser(userId);
+        RBACRules.requireOwner(UUID.fromString(userId), user.getId());
 
         if (user.getStatus() == UserStatus.LOCKED || user.getStatus() == UserStatus.INACTIVE) {
             throw new ForbiddenException(
@@ -41,6 +44,11 @@ public class ChangePasswordService {
 
         if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
             throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new UnprocessableContentException(
+                    "New password must differ from the current password");
         }
 
         if (Boolean.FALSE.equals(user.getVerified())) {
