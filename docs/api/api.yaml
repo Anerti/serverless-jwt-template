@@ -903,7 +903,7 @@ paths:
               example:
                 status: 403
                 error: Forbidden
-                message: Insufficient privileges to access this resource
+                message: Cannot access this resource.
                 timestamp: 2026-07-20T15:00:00Z
         '404':
           description: Resource not found
