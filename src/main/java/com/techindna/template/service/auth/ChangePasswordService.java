@@ -7,6 +7,7 @@ import com.techindna.template.exception.http.ForbiddenException;
 import com.techindna.template.exception.http.UnauthorizedException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
+import com.techindna.template.security.RBACRules;
 import com.techindna.template.service.event.auth.PasswordChangeNotificationService;
 import com.techindna.template.validator.AuthValidator;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,6 +34,7 @@ public class ChangePasswordService {
         authValidator.validateChangePassword(request);
 
         JUser user = resolveUser(userId);
+        RBACRules.requireOwner(UUID.fromString(userId), user.getId());
 
         if (user.getStatus() == UserStatus.LOCKED || user.getStatus() == UserStatus.INACTIVE) {
             throw new ForbiddenException(
