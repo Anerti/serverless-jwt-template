@@ -3,6 +3,9 @@ package com.techindna.template.security.jwt;
 import static java.util.List.of;
 
 import com.techindna.template.exception.ErrorBody;
+import com.techindna.template.exception.http.ForbiddenException;
+import com.techindna.template.security.ABACRules;
+import com.techindna.template.security.ClientIpAddressResolver;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.annotation.Nonnull;
@@ -47,17 +50,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String tokenIpAddress = claims.get("ip_address", String.class);
                 String requestIpAddress = clientIpAddressResolver.resolve(request);
 
-                if (tokenIpAddress == null || tokenIpAddress.isBlank()) {
-                    SecurityContextHolder.clearContext();
-                    ErrorBody.send(response, HttpStatus.UNAUTHORIZED, "Invalid token.");
-                    return;
-                }
-
-                if (requestIpAddress != null && !tokenIpAddress.equals(requestIpAddress)) {
-                    SecurityContextHolder.clearContext();
-                    ErrorBody.send(response, HttpStatus.UNAUTHORIZED, "IP address mismatch.");
-                    return;
-                }
+                ABACRules.authorizeIpAddress(tokenIpAddress, requestIpAddress);
 
                 List<SimpleGrantedAuthority> authorities =
                         role != null && !role.isBlank()
@@ -71,6 +64,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (JwtException ignored) {
                 SecurityContextHolder.clearContext();
+            } catch (ForbiddenException ex) {
+                SecurityContextHolder.clearContext();
+                ErrorBody.send(response, HttpStatus.FORBIDDEN, ex.getMessage());
+                return;
             }
         }
 

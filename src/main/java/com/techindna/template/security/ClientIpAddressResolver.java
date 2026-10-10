@@ -1,4 +1,4 @@
-package com.techindna.template.security.jwt;
+package com.techindna.template.security;
 
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.stereotype.Component;

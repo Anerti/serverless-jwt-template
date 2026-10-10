@@ -115,7 +115,7 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Application errors should use the shared `ErrorBody` envelope; do not return raw error strings or
   Spring's default error JSON.
 - Explicitly permit public routes in `SecurityConfig`; the chain otherwise requires authentication.
-- JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 401
+- JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 403
   on IP mismatch. Invalid/expired JWTs continue anonymously so protected routes can return 401.
 - Do not imply that a role claim is backed by endpoint-level role enforcement; none is currently
   configured.
