@@ -5,6 +5,7 @@ import com.techindna.template.dto.auth.ChangePasswordRequest;
 import com.techindna.template.entity.enums.UserStatus;
 import com.techindna.template.exception.http.ForbiddenException;
 import com.techindna.template.exception.http.UnauthorizedException;
+import com.techindna.template.exception.http.UnprocessableContentException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
 import com.techindna.template.security.RBACRules;
@@ -43,6 +44,11 @@ public class ChangePasswordService {
 
         if (!passwordEncoder.matches(request.oldPassword(), user.getPassword())) {
             throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+        }
+
+        if (passwordEncoder.matches(request.newPassword(), user.getPassword())) {
+            throw new UnprocessableContentException(
+                    "New password must differ from the current password");
         }
 
         if (Boolean.FALSE.equals(user.getVerified())) {

@@ -26,8 +26,8 @@ Implemented:
 - `POST /auth/mfa/confirm/login/{token}`: consumes a login token for a verified user (2FA) and issues
   a JWT with user details
 - `POST /auth/change-password`: authenticated endpoint that verifies the caller's current password,
-  confirms the new password, updates it immediately, and emails a password-change notification with
-  the client IP, user agent, and timestamp
+  rejects reusing it as the new password, confirms the new password, updates it immediately, and
+  emails a password-change notification with the client IP, user agent, and timestamp
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
   internal errors. Registration and change-password roll back when the email send fails.
 - PostgreSQL persistence model and repository layer

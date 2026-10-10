@@ -345,6 +345,13 @@ paths:
                     error: Unprocessable Entity
                     message: Passwords do not match
                     timestamp: 2026-07-20T15:00:00Z
+                passwordReused:
+                  summary: Password reused
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: New password must differ from the current password
+                    timestamp: 2026-07-20T15:00:00Z
         '403':
           description: Account not verified or business rule violation
           content:
