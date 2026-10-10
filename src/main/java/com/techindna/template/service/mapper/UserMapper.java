@@ -1,7 +1,7 @@
 package com.techindna.template.service.mapper;
 
+import com.techindna.template.dto.UserResponse;
 import com.techindna.template.dto.auth.RegisterRequest;
-import com.techindna.template.dto.auth.VerificationResponse;
 import com.techindna.template.repository.model.JUser;
 import com.techindna.template.validator.DataValidator;
 import java.util.Locale;
@@ -27,8 +27,8 @@ public class UserMapper {
                 .build();
     }
 
-    public VerificationResponse.UserResponse toResponse(JUser user) {
-        return new VerificationResponse.UserResponse(
+    public UserResponse toResponse(JUser user) {
+        return new UserResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getFirstName(),
