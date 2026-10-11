@@ -770,35 +770,38 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: username
+        - name: search
           in: query
           required: false
           schema:
             type: string
             maxLength: 100
-          description: Filter by username (partial match)
-        - name: firstName
+            pattern: '^[0-9a-zA-Z.@_\- éèê]*$'
+          description: >-
+            Optional filter by username, first name, last name, or email (partial
+            match). Only letters, digits, dot, @, underscore, hyphen, space, and
+            éèê are accepted.
+        - name: order
           in: query
           required: false
           schema:
             type: string
-            maxLength: 100
-          description: Filter by first name (partial match)
-        - name: lastName
+            enum: [asc, desc]
+            default: asc
+          description: >-
+            Sort order by account creation date. `asc` (default) lists oldest
+            accounts first; `desc` reverses the order to list newest first.
+        - name: role
           in: query
           required: false
           schema:
             type: string
-            maxLength: 100
-          description: Filter by last name (partial match)
-        - name: email
-          in: query
-          required: false
-          schema:
-            type: string
-            format: email
-            maxLength: 100
-          description: Filter by email (partial match)
+            enum: [admin, customer]
+            default: customer
+          description: >-
+            Optional filter that returns only users matching the given role.
+            Defaults to `customer` when omitted.
+            Any value other than `admin` is treated as `customer`.
         - name: page
           in: query
           schema:
@@ -848,19 +851,40 @@ paths:
               example:
                 status: 403
                 error: Forbidden
-                message: Admin role is required to access this resource
+                message: Insufficient privileges.
                 timestamp: 2026-07-20T15:00:00Z
-        '422':
-          description: Business rule violation
+        '400':
+          description: Invalid pagination parameters
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
               example:
-                status: 422
-                error: Unprocessable Entity
-                message: Page size must be between 1 and 100
+                status: 400
+                error: Bad Request
+                message: Invalid pagination parameters
                 timestamp: 2026-07-20T15:00:00Z
+        '422':
+          description: Invalid search parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              examples:
+                searchTooLong:
+                  summary: Search exceeds 100 characters
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: search must not exceed 100 characters
+                    timestamp: 2026-07-20T15:00:00Z
+                searchInvalidCharacters:
+                  summary: Search contains disallowed characters
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: "Search may only contain letters, digits, dot, @, underscore, hyphen, space, and éèê"
+                    timestamp: 2026-07-20T15:00:00Z
 
   /users/{userId}:
     get:

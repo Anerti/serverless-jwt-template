@@ -22,11 +22,13 @@ service rather than a complete user-management or RBAC platform.
 | `GET /auth/verify/{token}` | Implemented |
 | `POST /auth/mfa/confirm/register/{token}` | Implemented |
 | `POST /auth/mfa/confirm/login/{token}` | Implemented |
-| Logout, token revocation, account unlock/recovery, bulk user management | Not implemented |
-| Role-based endpoint authorization and admin-only flows | Not implemented |
+| `GET /users` admin-only paginated list with role filter, search, and creation-date ordering | Implemented |
+| `GET /users/{userId}` with object-level RBAC | Implemented |
+| Logout, token revocation, account unlock/recovery, user create/update/delete | Not implemented |
 
 The OpenAPI document captures the broader intended API, not a guarantee that every path is fully
-implemented. Current shipped behavior is the public health check and the auth lifecycle above.
+implemented. Current shipped behavior is the public health check, the auth lifecycle above, and the
+admin-only user list/read endpoints.
 
 ## Requirements
 
@@ -105,6 +107,8 @@ syn-ack
 | `GET` | `/auth/verify/{token}` | Public | Shows the confirmation page and routes its form to the confirmation endpoint for the token's flow |
 | `POST` | `/auth/mfa/confirm/register/{token}` | Public | Consumes a registration token, marks the user verified, and issues a JWT |
 | `POST` | `/auth/mfa/confirm/login/{token}` | Public | Consumes a login token for a verified user and issues a JWT (2FA) |
+| `GET` | `/users` | Admin | Paginated user list with `role` filter (default `customer`; only `admin` selects admins), case-insensitive partial `search` across username/name/email, and creation-date `order` (`asc`/`desc`) |
+| `GET` | `/users/{userId}` | Authenticated | Returns a single user subject to object-level RBAC |
 
 Register with curlie:
 
@@ -157,10 +161,11 @@ for `/syn`, `/auth/register`, `/auth/login`, `GET /auth/verify/*`, and
 `POST /auth/mfa/confirm/register/*` and `POST /auth/mfa/confirm/login/*`; other requests require
 authentication. The JWT filter validates signature and expiration, reads subject/role/IP claims,
 and checks the request IP against the token's IP claim. Invalid/expired tokens continue anonymously;
-an IP mismatch returns 401.
+an IP mismatch returns 403.
 
-Role claims are converted to Spring authorities, but endpoint-level role enforcement is not
-configured. Passwords are encoded with Spring Security's Argon2 password encoder.
+Role claims are converted to Spring authorities; `GET /users` is gated with `hasRole("ADMIN")` and
+`GET /users/{userId}` uses object-level RBAC rules. Passwords are encoded with Spring Security's
+Argon2 password encoder.
 
 ## Data model
 
@@ -176,19 +181,26 @@ application logic.
 build.gradle
 settings.gradle
 src/main/java/com/techindna/template/
-  controller/                       AuthController, SyncController
-  dto/                              request/response records
-  entity/                           domain types and email details
-  exception/                        ErrorBody, exception advice/types
-  repository/                       Spring Data repositories and JPA model
-  security/                         SecurityConfig and JWT filter/provider
-  service/                          registration, login, verification, Redis, email mapping
+  controller/                       HTTP endpoints (AuthController, SyncController, UserController)
+  dto/                              request/response records (auth payloads under dto/auth)
+  entity/                           domain types and enums (entity/enums, entity/email)
+  exception/                        ErrorBody, exception advice, HTTP exception types
+  repository/                       Spring Data repositories
+  repository/model/                 JPA persistence models such as JUser
+  security/                         SecurityConfig, RBAC/ABAC rules, client-IP resolver
+  security/jwt/                     JWT filter and token provider
+  service/                          business logic (auth, mail, mapper, redis, event/auth)
+  service/enums/                    service-scoped enums such as VerificationFlow
   validator/                        auth and data validation
 src/main/resources/
   application.properties
   db/migration/V1__init.sql
-  templates/mail/verification.html
-src/test/java/                      Testcontainers-based integration tests
+  templates/auth/auth-redirection.html
+  templates/mail/                   verification, login-verification, password-change HTML templates
+src/test/java/
+  com/techindna/template/config/    TestcontainersConfig and test support
+  com/techindna/template/controller/auth/    Auth* integration tests
+  com/techindna/template/controller/users/   UserGetTest, UserListTest
 src/test/resources/application.properties
 docs/api/api.yaml                   OpenAPI contract
 docs/cdm.canvas                     data model canvas
