@@ -28,7 +28,8 @@ Implemented:
 - `POST /auth/change-password`: authenticated endpoint that verifies the caller's current password,
   rejects reusing it as the new password, confirms the new password, updates it immediately, and
   emails a password-change notification with the client IP, user agent, and timestamp
-- `GET /users`: admin-only paginated user list with case-insensitive partial search across username,
+- `GET /users`: admin-only paginated user list with a `role` filter (default `customer`; any value
+  other than `admin` is treated as `customer`), case-insensitive partial search across username,
   first name, last name, and email; ordered by account creation date (reversed with `order=desc`)
 - `GET /users/{userId}`: authenticated read of a single user, subject to the RBAC access rules
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
@@ -73,21 +74,26 @@ copying Boot 3 examples without checking them.
 build.gradle
 settings.gradle
 src/main/java/com/techindna/template/
-  controller/                       HTTP endpoints (AuthController, SyncController)
-  dto/                             request/response records
-  entity/                          domain types and email payloads
+  controller/                       HTTP endpoints (AuthController, SyncController, UserController)
+  dto/                             request/response records (auth payloads under dto/auth)
+  entity/                          domain types and enums (entity/enums, entity/email)
   exception/                       ErrorBody, advice, HTTP exceptions
   repository/                      Spring Data repositories
   repository/model/                JPA persistence models such as JUser
-  security/                        SecurityConfig and JWT implementation
-  service/                         auth, mail, Redis, and mapping logic
+  security/                        SecurityConfig, RBAC/ABAC rules, client-IP resolver
+  security/jwt/                    JWT filter and token provider
+  service/                         business logic (auth, mail, mapper, redis, event/auth)
+  service/enums/                   service-scoped enums such as VerificationFlow
   validator/                       request/data validation
 src/main/resources/
   application.properties
   db/migration/V1__init.sql         PostgreSQL schema setup script
-  templates/mail/verification.html
+  templates/auth/auth-redirection.html
+  templates/mail/                  verification, login-verification, password-change HTML templates
 src/test/java/                     tests; TestcontainersConfig starts PostgreSQL and Redis
-  com/techindna/template/api/      AuthRegistrationTest and AuthLoginTest integration tests
+  com/techindna/template/config/   TestcontainersConfig and test support
+  com/techindna/template/controller/auth/   Auth* integration tests
+  com/techindna/template/controller/users/  UserGetTest and UserListTest
 src/test/resources/application.properties
 docs/api/api.yaml                 OpenAPI contract
 docs/cdm.canvas                   data-model canvas
@@ -148,6 +154,18 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Verification email metadata includes client remote address, user agent, and a timestamp.
   Registration uses the persisted creation timestamp; login uses the current time. `clientIp` uses
   `HttpServletRequest.getRemoteAddr()`.
+
+### Users listing
+
+- `GET /users` resolves the role inline: only `"admin"` (case-insensitive) selects admins; every
+  other value falls back to `customer`. Do not reintroduce a `parseRole`/validator that rejects
+  unknown values with a 400.
+- The list uses a single JPQL query (`UserRepository.findByRoleAndSearch`) that binds both role and
+  the normalized search. Wrap every occurrence of the search parameter in `CAST(:search AS string)`;
+  binding it untyped lets Hibernate send an untyped null that PostgreSQL plans as `bytea`, failing
+  with `function lower(bytea) does not exist` on the common no-search request.
+- Ordering maps inline the same way: `order=desc` reverses creation-date order, anything else is
+  ascending. Prefer Spring `Sort.by(...)` over a custom direction enum.
 
 ### API contract and config
 
