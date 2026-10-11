@@ -21,10 +21,10 @@ public interface UserRepository extends JpaRepository<JUser, UUID> {
             SELECT u FROM JUser u
             WHERE u.role = :role
               AND (:search IS NULL
-                   OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%'))
-                   OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))
+                   OR LOWER(u.username) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+                   OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+                   OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))
+                   OR LOWER(u.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))
             """)
     Page<JUser> findByRoleAndSearch(
             @Param("role") UserRole role, @Param("search") String search, Pageable pageable);
