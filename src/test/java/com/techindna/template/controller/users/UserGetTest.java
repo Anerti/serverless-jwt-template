@@ -1,4 +1,4 @@
-package com.techindna.template.controller;
+package com.techindna.template.controller.users;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
