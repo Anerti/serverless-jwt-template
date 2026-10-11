@@ -47,6 +47,8 @@ public class SecurityConfig {
                                                 "/auth/mfa/confirm/register/*",
                                                 "/auth/mfa/confirm/login/*")
                                         .permitAll()
+                                        .requestMatchers(HttpMethod.GET, "/users")
+                                        .hasRole("ADMIN")
                                         .dispatcherTypeMatchers(DispatcherType.ERROR)
                                         .permitAll()
                                         .anyRequest()

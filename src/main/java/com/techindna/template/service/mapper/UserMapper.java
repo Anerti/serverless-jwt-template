@@ -1,11 +1,15 @@
 package com.techindna.template.service.mapper;
 
+import com.techindna.template.dto.Meta;
+import com.techindna.template.dto.PageResponse;
 import com.techindna.template.dto.UserResponse;
 import com.techindna.template.dto.auth.RegisterRequest;
 import com.techindna.template.repository.model.JUser;
 import com.techindna.template.validator.DataValidator;
+import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -38,5 +42,10 @@ public class UserMapper {
                 user.getStatus().name().toLowerCase(Locale.ROOT),
                 user.getCreatedAt(),
                 user.getUpdatedAt());
+    }
+
+    public PageResponse<UserResponse> toPageResponse(Page<JUser> users, int page, int size) {
+        List<UserResponse> data = users.getContent().stream().map(this::toResponse).toList();
+        return new PageResponse<>(data, new Meta(page, size, users.getTotalElements()));
     }
 }

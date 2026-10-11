@@ -28,6 +28,9 @@ Implemented:
 - `POST /auth/change-password`: authenticated endpoint that verifies the caller's current password,
   rejects reusing it as the new password, confirms the new password, updates it immediately, and
   emails a password-change notification with the client IP, user agent, and timestamp
+- `GET /users`: admin-only paginated user list with case-insensitive partial search across username,
+  first name, last name, and email; ordered by account creation date (reversed with `order=desc`)
+- `GET /users/{userId}`: authenticated read of a single user, subject to the RBAC access rules
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
   internal errors. Registration and change-password roll back when the email send fails.
 - PostgreSQL persistence model and repository layer
@@ -36,7 +39,8 @@ Not implemented:
 
 - Logout, JWT revocation or refresh, or any session-management flow
 - Account unlock/recovery, password reset, or email-change completion beyond the initial verification
-- User CRUD, account status/role enforcement, or admin authorization rules
+- User create/update/delete, account status enforcement, or admin authorization rules beyond the
+  list and read endpoints
 - Any broader app features implied by the OpenAPI contract but not yet wired into the application
 
 Important behavioral notes:
@@ -117,8 +121,9 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Explicitly permit public routes in `SecurityConfig`; the chain otherwise requires authentication.
 - JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 403
   on IP mismatch. Invalid/expired JWTs continue anonymously so protected routes can return 401.
-- Do not imply that a role claim is backed by endpoint-level role enforcement; none is currently
-  configured.
+- The role claim is enforced per-endpoint: `SecurityConfig` gates `GET /users` with `hasRole("ADMIN")`
+  and `RBACRules` handles object-level access (for example, `GET /users/{userId}`); do not treat the
+  role as a global rule that every route checks.
 
 ### Registration and mail
 

@@ -1,5 +1,6 @@
 package com.techindna.template.validator;
 
+import com.techindna.template.exception.http.BadRequestException;
 import com.techindna.template.exception.http.UnprocessableContentException;
 import org.springframework.stereotype.Component;
 
@@ -9,9 +10,13 @@ import java.util.regex.Pattern;
 @Component
 public class DataValidator {
 
+    private static final int MIN_PAGE_SIZE = 1;
+    private static final int MAX_PAGE_SIZE = 100;
+
     private static final Pattern EMAIL_FORMAT = Pattern.compile("^[a-z0-9_.-]+@[a-z0-9_-]+(\\.[a-z]+)+$");
     private static final Pattern NAME_FORMAT = Pattern.compile("^[A-Z][a-z-'éèê ]{2,}$");
     private static final Pattern USERNAME_FORMAT = Pattern.compile("^[a-zA-Z_0-9-]{2,}$");
+    private static final Pattern SEARCH_FORMAT = Pattern.compile("^[0-9a-zA-Z.@_\\- éèê]*$");
 
     public void checkNullData(String field, String value) {
         if (value == null || value.isBlank()) {
@@ -22,6 +27,20 @@ public class DataValidator {
     public void checkStringLength(String field, String value, int maxLength) {
         if (value != null && value.length() > maxLength) {
             throw new UnprocessableContentException(String.format("%s must not exceed %s characters", field, maxLength));
+        }
+    }
+
+    public void validateSearchString(String value) {
+        checkStringLength("search", value, 100);
+        if (value != null && !SEARCH_FORMAT.matcher(value).matches()) {
+            throw new UnprocessableContentException(
+                    "Search may only contain letters, digits, dot, @, underscore, hyphen, space, and éèê");
+        }
+    }
+
+    public void validatePagination(int page, int size) {
+        if (page < 1 || size < MIN_PAGE_SIZE || size > MAX_PAGE_SIZE) {
+            throw new BadRequestException("Invalid pagination parameters");
         }
     }
 
