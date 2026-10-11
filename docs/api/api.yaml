@@ -791,6 +791,16 @@ paths:
           description: >-
             Sort order by account creation date. `asc` (default) lists oldest
             accounts first; `desc` reverses the order to list newest first.
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [admin, customer]
+            default: customer
+          description: >-
+            Optional filter that returns only users matching the given role.
+            Defaults to `customer` when omitted.
         - name: page
           in: query
           schema:
@@ -873,6 +883,13 @@ paths:
                     status: 422
                     error: Unprocessable Entity
                     message: "Search may only contain letters, digits, dot, @, underscore, hyphen, space, and éèê"
+                    timestamp: 2026-07-20T15:00:00Z
+                invalidRole:
+                  summary: Unknown role value
+                  value:
+                    status: 422
+                    error: Unprocessable Entity
+                    message: role must be one of admin or customer
                     timestamp: 2026-07-20T15:00:00Z
 
   /users/{userId}:
