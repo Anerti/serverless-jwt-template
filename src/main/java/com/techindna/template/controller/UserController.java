@@ -23,9 +23,10 @@ public class UserController {
     public PageResponse<UserResponse> listUsers(
             @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "asc") String order,
+            @RequestParam(defaultValue = "customer") String role,
             @RequestParam(defaultValue = "${app.pagination.default-page}") int page,
             @RequestParam(defaultValue = "${app.pagination.default-size}") int size) {
-        return userService.findAll(search, order, page, size);
+        return userService.findAll(search, order, role, page, size);
     }
 
     @GetMapping("/{userId}")

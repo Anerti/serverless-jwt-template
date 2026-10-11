@@ -1,5 +1,6 @@
 package com.techindna.template.repository;
 
+import com.techindna.template.entity.enums.UserRole;
 import com.techindna.template.repository.model.JUser;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,10 +19,13 @@ public interface UserRepository extends JpaRepository<JUser, UUID> {
     @Query(
             """
             SELECT u FROM JUser u
-            WHERE LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%'))
-               OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%'))
-               OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%'))
-               OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))
+            WHERE u.role = :role
+              AND (:search IS NULL
+                   OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%'))
+                   OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
-    Page<JUser> findBySearch(@Param("search") String search, Pageable pageable);
+    Page<JUser> findByRoleAndSearch(
+            @Param("role") UserRole role, @Param("search") String search, Pageable pageable);
 }

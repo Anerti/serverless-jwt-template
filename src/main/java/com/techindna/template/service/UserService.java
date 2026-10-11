@@ -2,6 +2,7 @@ package com.techindna.template.service;
 
 import com.techindna.template.dto.PageResponse;
 import com.techindna.template.dto.UserResponse;
+import com.techindna.template.entity.enums.UserRole;
 import com.techindna.template.exception.http.NotFoundException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
@@ -39,7 +40,8 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<UserResponse> findAll(String search, String order, int page, int size) {
+    public PageResponse<UserResponse> findAll(
+            String search, String order, String role, int page, int size) {
         dataValidator.validateSearchString(search);
         dataValidator.validatePagination(page, size);
 
@@ -53,9 +55,12 @@ public class UserService {
                                         : Sort.Direction.ASC,
                                 "createdAt"));
 
-        return (search == null || search.isBlank())
-                ? userMapper.toPageResponse(userRepository.findAll(pageable), page, size)
-                : userMapper.toPageResponse(
-                        userRepository.findBySearch(search, pageable), page, size);
+        return userMapper.toPageResponse(
+                userRepository.findByRoleAndSearch(
+                        "admin".equalsIgnoreCase(role) ? UserRole.ADMIN : UserRole.CUSTOMER,
+                        (search == null || search.isBlank()) ? null : search,
+                        pageable),
+                page,
+                size);
     }
 }
