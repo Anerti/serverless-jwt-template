@@ -770,35 +770,23 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - name: username
+        - name: search
           in: query
           required: false
           schema:
             type: string
             maxLength: 100
-          description: Filter by username (partial match)
-        - name: firstName
+          description: Filter by username, first name, last name, or email (partial match)
+        - name: order
           in: query
           required: false
           schema:
             type: string
-            maxLength: 100
-          description: Filter by first name (partial match)
-        - name: lastName
-          in: query
-          required: false
-          schema:
-            type: string
-            maxLength: 100
-          description: Filter by last name (partial match)
-        - name: email
-          in: query
-          required: false
-          schema:
-            type: string
-            format: email
-            maxLength: 100
-          description: Filter by email (partial match)
+            enum: [asc, desc]
+            default: asc
+          description: >-
+            Sort order by account creation date. `asc` (default) lists oldest
+            accounts first; `desc` reverses the order to list newest first.
         - name: page
           in: query
           schema:
