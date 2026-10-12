@@ -8,6 +8,7 @@ import com.techindna.template.service.mail.EmailService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.MailException;
@@ -22,18 +23,21 @@ public class AccountDeletionNotificationService {
 
     private final EmailService emailService;
 
-    public void sendAccountDeletionNotification(JUser user, HttpServletRequest request) {
-        String userAgent = request.getHeader("User-Agent");
-        if (userAgent == null) {
-            userAgent = "Unknown";
-        }
+    public void sendAccountDeletionNotification(
+            JUser user, HttpServletRequest request, boolean selfDeleted) {
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("firstName", user.getFirstName());
+        variables.put("selfDeleted", selfDeleted);
+        variables.put("time", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
 
-        Map<String, Object> variables =
-                Map.of(
-                        "firstName", user.getFirstName(),
-                        "clientIp", request.getRemoteAddr(),
-                        "userAgent", userAgent,
-                        "time", DateTimeFormatter.ISO_INSTANT.format(Instant.now()));
+        if (selfDeleted) {
+            String userAgent = request.getHeader("User-Agent");
+            if (userAgent == null) {
+                userAgent = "Unknown";
+            }
+            variables.put("clientIp", request.getRemoteAddr());
+            variables.put("userAgent", userAgent);
+        }
 
         try {
             emailService.sendMail(

@@ -21,8 +21,11 @@
                             <p style="margin: 0 0 16px; color: #333333; font-size: 15px; line-height: 24px;">
                                 Hello <strong th:text="${firstName}">John</strong>,
                             </p>
-                            <p style="margin: 0 0 24px; color: #555555; font-size: 14px; line-height: 22px;">
+                            <p th:if="${selfDeleted}" style="margin: 0 0 24px; color: #555555; font-size: 14px; line-height: 22px;">
                                 Your account has been deleted successfully. If you made this request, no further action is required.
+                            </p>
+                            <p th:unless="${selfDeleted}" style="margin: 0 0 24px; color: #555555; font-size: 14px; line-height: 22px;">
+                                Your account has been deleted by an administrator. If you have questions about this action, please contact support.
                             </p>
                             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top: 8px; border-top: 1px solid #e8e8e8;">
                                 <tr>
@@ -32,11 +35,11 @@
                                 </tr>
                             </table>
                             <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e0e0e0; background-color: #f0f0f0;">
-                                <tr>
+                                <tr th:if="${selfDeleted}">
                                     <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold; border-bottom: 1px solid #e0e0e0;">IP address</td>
                                     <td th:text="${clientIp}" style="padding: 10px 12px; color: #333333; font-size: 13px; border-bottom: 1px solid #e0e0e0; word-wrap: break-word;">127.0.0.1</td>
                                 </tr>
-                                <tr>
+                                <tr th:if="${selfDeleted}">
                                     <td width="100" style="padding: 10px 12px; color: #555555; font-size: 13px; font-weight: bold; border-bottom: 1px solid #e0e0e0;">User agent</td>
                                     <td th:text="${userAgent}" style="padding: 10px 12px; color: #333333; font-size: 13px; border-bottom: 1px solid #e0e0e0; word-wrap: break-word;">Mozilla/5.0</td>
                                 </tr>
@@ -49,8 +52,11 @@
                     </tr>
                     <tr>
                         <td style="background-color: #f9f9fb; padding: 16px 32px; text-align: center; border-top: 1px solid #e8e8e8;">
-                            <p style="margin: 0; color: #cc0000; font-size: 12px; line-height: 18px;">
+                            <p th:if="${selfDeleted}" style="margin: 0; color: #cc0000; font-size: 12px; line-height: 18px;">
                                 If you did not delete your account, contact support immediately.
+                            </p>
+                            <p th:unless="${selfDeleted}" style="margin: 0; color: #cc0000; font-size: 12px; line-height: 18px;">
+                                If you believe this was a mistake, contact support as soon as possible.
                             </p>
                         </td>
                     </tr>

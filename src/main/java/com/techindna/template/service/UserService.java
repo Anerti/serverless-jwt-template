@@ -70,15 +70,14 @@ public class UserService {
     public void deleteUser(
             UUID userId, Authentication authentication, HttpServletRequest servletRequest) {
         JUser user = findUser(userId);
+        UUID requesterId = UUID.fromString(authentication.getName());
 
         RBACRules.authorize(
-                RBACRules.roleOf(authentication),
-                UUID.fromString(authentication.getName()),
-                user.getRole(),
-                user.getId());
+                RBACRules.roleOf(authentication), requesterId, user.getRole(), user.getId());
 
         userRepository.delete(user);
-        accountDeletionNotificationService.sendAccountDeletionNotification(user, servletRequest);
+        accountDeletionNotificationService.sendAccountDeletionNotification(
+                user, servletRequest, requesterId.equals(user.getId()));
     }
 
     private JUser findUser(UUID userId) {

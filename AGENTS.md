@@ -33,7 +33,8 @@ Implemented:
   first name, last name, and email; ordered by account creation date (reversed with `order=desc`)
 - `GET /users/{userId}`: authenticated read of a single user, subject to the RBAC access rules
 - `DELETE /users/{userId}`: deletes the account after applying the same RBAC access rules, then sends
-  a deletion-notification email to the account's registered address
+  a deletion-notification email to the account's registered address; the email includes the requester
+  IP/user agent only for self-deletion, never for an admin deleting someone else
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
   internal errors. Registration, change-password, and account deletion roll back when the email send
   fails.

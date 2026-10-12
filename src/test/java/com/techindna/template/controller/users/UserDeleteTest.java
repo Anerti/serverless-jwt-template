@@ -82,13 +82,14 @@ class UserDeleteTest extends TestcontainersConfig {
         assertThat(email.getTemplate()).isEqualTo(EmailTemplate.ACCOUNT_DELETION_NOTIFICATION);
         assertThat(email.getVariables())
                 .containsEntry("firstName", "Jane")
+                .containsEntry("selfDeleted", true)
                 .containsEntry("userAgent", "UserDeleteTest/1.0");
         assertThat((String) email.getVariables().get("clientIp")).isNotBlank();
         assertThat(Instant.parse((String) email.getVariables().get("time"))).isNotNull();
     }
 
     @Test
-    void adminCanDeleteCustomer() {
+    void adminCanDeleteCustomerWithoutLeakingRequesterMetadata() {
         JUser admin = saveUser("admin", "admin@example.com", UserRole.ADMIN);
         JUser customer = saveUser("jane", "jane@example.com", UserRole.CUSTOMER);
 
@@ -97,6 +98,16 @@ class UserDeleteTest extends TestcontainersConfig {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
         assertThat(userRepository.findById(customer.getId())).isEmpty();
         assertThat(userRepository.findById(admin.getId())).isPresent();
+
+        ArgumentCaptor<EmailDetails> emailCaptor = ArgumentCaptor.forClass(EmailDetails.class);
+        verify(emailService).sendMail(emailCaptor.capture());
+        EmailDetails email = emailCaptor.getValue();
+        assertThat(email.getRecipient()).isEqualTo("jane@example.com");
+        assertThat(email.getTemplate()).isEqualTo(EmailTemplate.ACCOUNT_DELETION_NOTIFICATION);
+        assertThat(email.getVariables())
+                .containsEntry("firstName", "Jane")
+                .containsEntry("selfDeleted", false)
+                .doesNotContainKeys("clientIp", "userAgent");
     }
 
     @Test

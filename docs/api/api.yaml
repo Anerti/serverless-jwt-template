@@ -1018,8 +1018,11 @@ paths:
       description: >-
         Deletes the account and sends a deletion-notification email to the
         account's registered address. An admin may delete a customer account or
-        their own; a customer may delete only their own account. The email send is
-        synchronous, so a mail failure returns 500 and rolls the deletion back.
+        their own; a customer may delete only their own account. The email
+        includes the requester's IP address and user agent only when the account
+        owner deleted their own account, so admin-initiated deletions do not leak
+        the admin's request metadata. The email send is synchronous, so a mail
+        failure returns 500 and rolls the deletion back.
       tags: [Users]
       security:
         - bearerAuth: []
