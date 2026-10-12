@@ -32,16 +32,20 @@ Implemented:
   other than `admin` is treated as `customer`), case-insensitive partial search across username,
   first name, last name, and email; ordered by account creation date (reversed with `order=desc`)
 - `GET /users/{userId}`: authenticated read of a single user, subject to the RBAC access rules
+- `DELETE /users/{userId}`: deletes the account after applying the same RBAC access rules, then sends
+  a deletion-notification email to the account's registered address; the email includes the requester
+  IP/user agent only for self-deletion, never for an admin deleting someone else
 - Synchronous SMTP sending; mail failures remove the associated Redis verification token and surface
-  internal errors. Registration and change-password roll back when the email send fails.
+  internal errors. Registration, change-password, and account deletion roll back when the email send
+  fails.
 - PostgreSQL persistence model and repository layer
 
 Not implemented:
 
 - Logout, JWT revocation or refresh, or any session-management flow
 - Account unlock/recovery, password reset, or email-change completion beyond the initial verification
-- User create/update/delete, account status enforcement, or admin authorization rules beyond the
-  list and read endpoints
+- User create/update, account status enforcement, or admin authorization rules beyond the list,
+  read, and delete endpoints
 - Any broader app features implied by the OpenAPI contract but not yet wired into the application
 
 Important behavioral notes:
@@ -93,7 +97,7 @@ src/main/resources/
 src/test/java/                     tests; TestcontainersConfig starts PostgreSQL and Redis
   com/techindna/template/config/   TestcontainersConfig and test support
   com/techindna/template/controller/auth/   Auth* integration tests
-  com/techindna/template/controller/users/  UserGetTest and UserListTest
+  com/techindna/template/controller/users/  UserGetTest, UserListTest and UserDeleteTest
 src/test/resources/application.properties
 docs/api/api.yaml                 OpenAPI contract
 docs/cdm.canvas                   data-model canvas

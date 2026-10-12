@@ -3,9 +3,12 @@ package com.techindna.template.controller;
 import com.techindna.template.dto.PageResponse;
 import com.techindna.template.dto.UserResponse;
 import com.techindna.template.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,7 +34,15 @@ public class UserController {
 
     @GetMapping("/{userId}")
     public UserResponse getUserById(@PathVariable UUID userId, Authentication authentication) {
-        return userService.getUserById(
-                userId, UUID.fromString(authentication.getName()), authentication);
+        return userService.getUserById(userId, authentication);
+    }
+
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable UUID userId,
+            Authentication authentication,
+            HttpServletRequest servletRequest) {
+        userService.deleteUser(userId, authentication, servletRequest);
+        return ResponseEntity.noContent().build();
     }
 }

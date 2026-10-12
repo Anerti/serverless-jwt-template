@@ -1015,6 +1015,14 @@ paths:
     delete:
       operationId: deleteUser
       summary: Delete a user
+      description: >-
+        Deletes the account and sends a deletion-notification email to the
+        account's registered address. An admin may delete a customer account or
+        their own; a customer may delete only their own account. The email
+        includes the requester's IP address and user agent only when the account
+        owner deleted their own account, so admin-initiated deletions do not leak
+        the admin's request metadata. The email send is synchronous, so a mail
+        failure returns 500 and rolls the deletion back.
       tags: [Users]
       security:
         - bearerAuth: []
@@ -1028,6 +1036,28 @@ paths:
       responses:
         '204':
           description: User deleted
+        '401':
+          description: Missing or invalid authentication token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 401
+                error: Unauthorized
+                message: Authentication required.
+                timestamp: 2026-07-20T15:00:00Z
+        '403':
+          description: Insufficient permissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 403
+                error: Forbidden
+                message: Cannot access this resource.
+                timestamp: 2026-07-20T15:00:00Z
         '404':
           description: Resource not found
           content:
@@ -1038,6 +1068,17 @@ paths:
                 status: 404
                 error: Not Found
                 message: User not found
+                timestamp: 2026-07-20T15:00:00Z
+        '500':
+          description: Failed to send account-deletion notification email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 500
+                error: Internal Server Error
+                message: Failed to send account-deletion notification email
                 timestamp: 2026-07-20T15:00:00Z
 
 components:
