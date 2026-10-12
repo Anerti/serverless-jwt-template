@@ -7,8 +7,10 @@ import com.techindna.template.exception.http.NotFoundException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
 import com.techindna.template.security.RBACRules;
+import com.techindna.template.service.event.AccountDeletionNotificationService;
 import com.techindna.template.service.mapper.UserMapper;
 import com.techindna.template.validator.DataValidator;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
@@ -24,17 +26,17 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final DataValidator dataValidator;
+    private final AccountDeletionNotificationService accountDeletionNotificationService;
 
     @Transactional(readOnly = true)
-    public UserResponse getUserById(
-            UUID userId, UUID requesterId, Authentication authentication) {
-        JUser user =
-                userRepository
-                        .findById(userId)
-                        .orElseThrow(() -> new NotFoundException("User not found"));
+    public UserResponse getUserById(UUID userId, Authentication authentication) {
+        JUser user = findUser(userId);
 
         RBACRules.authorize(
-                RBACRules.roleOf(authentication), requesterId, user.getRole(), user.getId());
+                RBACRules.roleOf(authentication),
+                UUID.fromString(authentication.getName()),
+                user.getRole(),
+                user.getId());
 
         return userMapper.toResponse(user);
     }
@@ -62,5 +64,26 @@ public class UserService {
                         pageable),
                 page,
                 size);
+    }
+
+    @Transactional
+    public void deleteUser(
+            UUID userId, Authentication authentication, HttpServletRequest servletRequest) {
+        JUser user = findUser(userId);
+
+        RBACRules.authorize(
+                RBACRules.roleOf(authentication),
+                UUID.fromString(authentication.getName()),
+                user.getRole(),
+                user.getId());
+
+        userRepository.delete(user);
+        accountDeletionNotificationService.sendAccountDeletionNotification(user, servletRequest);
+    }
+
+    private JUser findUser(UUID userId) {
+        return userRepository
+                .findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
     }
 }
