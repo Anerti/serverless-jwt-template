@@ -25,7 +25,7 @@ public final class RBACRules {
                                         "Insufficient privileges to access this resource"));
     }
 
-    public static boolean canAccess(
+    private static boolean canAccess(
             UserRole requesterRole, UUID requesterId, UserRole ownerRole, UUID ownerId) {
         return requesterRole == UserRole.ADMIN
                 ? ownerRole != UserRole.ADMIN || requesterId.equals(ownerId)

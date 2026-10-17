@@ -24,11 +24,13 @@ service rather than a complete user-management or RBAC platform.
 | `POST /auth/mfa/confirm/login/{token}` | Implemented |
 | `GET /users` admin-only paginated list with role filter, search, and creation-date ordering | Implemented |
 | `GET /users/{userId}` with object-level RBAC | Implemented |
-| Logout, token revocation, account unlock/recovery, user create/update/delete | Not implemented |
+| `PATCH /users/{userId}` self-only profile update (`username`, `firstName`, `lastName`) | Implemented |
+| `DELETE /users/{userId}` with object-level RBAC and deletion-notification email | Implemented |
+| Logout, token revocation, account unlock/recovery, user create | Not implemented |
 
 The OpenAPI document captures the broader intended API, not a guarantee that every path is fully
 implemented. Current shipped behavior is the public health check, the auth lifecycle above, and the
-admin-only user list/read endpoints.
+user list, read, update, and delete endpoints.
 
 ## Requirements
 
@@ -109,6 +111,8 @@ syn-ack
 | `POST` | `/auth/mfa/confirm/login/{token}` | Public | Consumes a login token for a verified user and issues a JWT (2FA) |
 | `GET` | `/users` | Admin | Paginated user list with `role` filter (default `customer`; only `admin` selects admins), case-insensitive partial `search` across username/name/email, and creation-date `order` (`asc`/`desc`) |
 | `GET` | `/users/{userId}` | Authenticated | Returns a single user subject to object-level RBAC |
+| `PATCH` | `/users/{userId}` | Authenticated (owner) | Partial update of the caller's own `username`/`firstName`/`lastName`; omitted fields keep their stored values |
+| `DELETE` | `/users/{userId}` | Authenticated | Deletes the account subject to object-level RBAC, then emails a deletion notification |
 
 Register with curlie:
 
@@ -132,6 +136,12 @@ Login follows the same pattern, but it does not establish a session or return a 
 credentials it clears the failed-attempt counter and, if the account is already verified, sends a
 login-verification email and returns `202 Accepted`. The confirmation page routes the form to
 `POST /auth/mfa/confirm/login/{token}`, which completes the two-factor login and returns a JWT.
+
+`PATCH /users/{userId}` updates the authenticated user's own profile. Only the caller's own account
+can be updated, so an admin cannot edit someone else's account. Omitted fields keep their stored
+values, so an empty body is a successful no-op. The username is trimmed and lowercased before
+persistence and must remain unique, so a duplicate returns 409. The user lookup behind the update
+hides non-existent ids, so an unknown `userId` returns 403 rather than 404.
 
 Registration rules include a password of at least 12 characters containing uppercase, lowercase,
 digit, and special characters; username length 2–50; first/last name maximum 100; and email maximum
@@ -163,9 +173,10 @@ authentication. The JWT filter validates signature and expiration, reads subject
 and checks the request IP against the token's IP claim. Invalid/expired tokens continue anonymously;
 an IP mismatch returns 403.
 
-Role claims are converted to Spring authorities; `GET /users` is gated with `hasRole("ADMIN")` and
-`GET /users/{userId}` uses object-level RBAC rules. Passwords are encoded with Spring Security's
-Argon2 password encoder.
+Role claims are converted to Spring authorities; `GET /users` is gated with `hasRole("ADMIN")`,
+while `GET /users/{userId}` and `DELETE /users/{userId}` use object-level RBAC rules and
+`PATCH /users/{userId}` is restricted to the owner (`RBACRules.requireOwner`). Passwords are encoded
+with Spring Security's Argon2 password encoder.
 
 ## Data model
 
@@ -200,7 +211,7 @@ src/main/resources/
 src/test/java/
   com/techindna/template/config/    TestcontainersConfig and test support
   com/techindna/template/controller/auth/    Auth* integration tests
-  com/techindna/template/controller/users/   UserGetTest, UserListTest
+  com/techindna/template/controller/users/   UserGetTest, UserListTest, UserUpdateTest and UserDeleteTest
 src/test/resources/application.properties
 docs/api/api.yaml                   OpenAPI contract
 docs/cdm.canvas                     data model canvas
