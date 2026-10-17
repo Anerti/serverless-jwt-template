@@ -1,8 +1,11 @@
 package com.techindna.template.service;
 
 import com.techindna.template.dto.PageResponse;
+import com.techindna.template.dto.UpdateUserRequest;
 import com.techindna.template.dto.UserResponse;
 import com.techindna.template.entity.enums.UserRole;
+import com.techindna.template.exception.http.ConflictException;
+import com.techindna.template.exception.http.ForbiddenException;
 import com.techindna.template.exception.http.NotFoundException;
 import com.techindna.template.repository.UserRepository;
 import com.techindna.template.repository.model.JUser;
@@ -10,9 +13,12 @@ import com.techindna.template.security.RBACRules;
 import com.techindna.template.service.event.AccountDeletionNotificationService;
 import com.techindna.template.service.mapper.UserMapper;
 import com.techindna.template.validator.DataValidator;
+import com.techindna.template.validator.UserValidator;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.UUID;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
@@ -26,11 +32,12 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final DataValidator dataValidator;
+    private final UserValidator userValidator;
     private final AccountDeletionNotificationService accountDeletionNotificationService;
 
     @Transactional(readOnly = true)
     public UserResponse getUserById(UUID userId, Authentication authentication) {
-        JUser user = findUser(userId);
+        JUser user = findUser(userId, () -> new NotFoundException("User not found"));
 
         RBACRules.authorize(
                 RBACRules.roleOf(authentication),
@@ -39,6 +46,28 @@ public class UserService {
                 user.getId());
 
         return userMapper.toResponse(user);
+    }
+
+    @Transactional
+    public UserResponse updateUser(
+            UUID userId, UpdateUserRequest request, Authentication authentication) {
+        userValidator.validateUpdate(request);
+
+        JUser user =
+                findUser(userId, () -> new ForbiddenException("Cannot access this resource."));
+
+        RBACRules.requireOwner(UUID.fromString(authentication.getName()), user.getId());
+
+        String username = dataValidator.normalizeUsername(request.username());
+        user.setUsername(username == null ? user.getUsername() : username);
+        user.setFirstName(request.firstName() == null ? user.getFirstName() : request.firstName());
+        user.setLastName(request.lastName() == null ? user.getLastName() : request.lastName());
+
+        try {
+            return userMapper.toResponse(userRepository.saveAndFlush(user));
+        } catch (DataIntegrityViolationException e) {
+            throw new ConflictException("Cannot use this username");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -69,7 +98,7 @@ public class UserService {
     @Transactional
     public void deleteUser(
             UUID userId, Authentication authentication, HttpServletRequest servletRequest) {
-        JUser user = findUser(userId);
+        JUser user = findUser(userId, () -> new NotFoundException("User not found"));
         UUID requesterId = UUID.fromString(authentication.getName());
 
         RBACRules.authorize(
@@ -80,9 +109,7 @@ public class UserService {
                 user, servletRequest, requesterId.equals(user.getId()));
     }
 
-    private JUser findUser(UUID userId) {
-        return userRepository
-                .findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found"));
+    private JUser findUser(UUID userId, Supplier<? extends RuntimeException> onMissing) {
+        return userRepository.findById(userId).orElseThrow(onMissing);
     }
 }

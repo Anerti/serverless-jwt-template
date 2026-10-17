@@ -1,6 +1,7 @@
 package com.techindna.template.controller;
 
 import com.techindna.template.dto.PageResponse;
+import com.techindna.template.dto.UpdateUserRequest;
 import com.techindna.template.dto.UserResponse;
 import com.techindna.template.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -10,7 +11,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +38,14 @@ public class UserController {
     @GetMapping("/{userId}")
     public UserResponse getUserById(@PathVariable UUID userId, Authentication authentication) {
         return userService.getUserById(userId, authentication);
+    }
+
+    @PatchMapping("/{userId}")
+    public UserResponse updateUser(
+            @PathVariable UUID userId,
+            @RequestBody UpdateUserRequest request,
+            Authentication authentication) {
+        return userService.updateUser(userId, request, authentication);
     }
 
     @DeleteMapping("/{userId}")
