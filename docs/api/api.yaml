@@ -544,40 +544,6 @@ paths:
                 message: Failed to send verification email
                 timestamp: 2026-07-20T15:00:00Z
 
-  /auth/logout:
-    post:
-      operationId: logout
-      summary: Log out and revoke the current token
-      description: >-
-        Revokes the caller's current JWT so it can no longer be used for authentication.
-        The token is added to a Redis blacklist with a TTL equal to the token's remaining
-        lifetime, so the revocation lapses automatically when the token would have expired.
-        The JwtAuthenticationFilter rejects blacklisted tokens. After a successful response
-        the client should discard the token. Requires authentication.
-      tags: [Auth]
-      security:
-        - bearerAuth: []
-      responses:
-        '200':
-          description: Token revoked
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageBody'
-              example:
-                message: Logged out successfully
-        '401':
-          description: Missing or invalid authentication token
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 401
-                error: Unauthorized
-                message: Missing or invalid authentication token
-                timestamp: 2026-07-20T15:00:00Z
-
   # ──────────────── MFA ────────────────
   /auth/verify/{token}:
     get:
