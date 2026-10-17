@@ -32,6 +32,9 @@ Implemented:
   other than `admin` is treated as `customer`), case-insensitive partial search across username,
   first name, last name, and email; ordered by account creation date (reversed with `order=desc`)
 - `GET /users/{userId}`: authenticated read of a single user, subject to the RBAC access rules
+- `PATCH /users/{userId}`: partial profile update of the authenticated user's own account
+  (`username`, `firstName`, `lastName`); omitted fields keep their stored values, the username is
+  canonicalized and must stay unique (409 on conflict), and authorization is self-only
 - `DELETE /users/{userId}`: deletes the account after applying the same RBAC access rules, then sends
   a deletion-notification email to the account's registered address; the email includes the requester
   IP/user agent only for self-deletion, never for an admin deleting someone else
@@ -44,8 +47,8 @@ Not implemented:
 
 - Logout, JWT revocation or refresh, or any session-management flow
 - Account unlock/recovery, password reset, or email-change completion beyond the initial verification
-- User create/update, account status enforcement, or admin authorization rules beyond the list,
-  read, and delete endpoints
+- User create, account status enforcement, or admin authorization rules beyond the list, read,
+  update, and delete endpoints
 - Any broader app features implied by the OpenAPI contract but not yet wired into the application
 
 Important behavioral notes:
@@ -58,6 +61,8 @@ Important behavioral notes:
   implemented recovery path.
 - Unknown identifiers and incorrect passwords intentionally produce different responses, so do not claim
   the project currently hides account existence effectively.
+- `PATCH /users/{userId}` is self-only via `RBACRules.requireOwner`, so an admin cannot update other
+  accounts; unlike `GET`/`DELETE`, an unknown user id returns 403 rather than 404.
 
 ## Stack and constraints
 
@@ -97,7 +102,7 @@ src/main/resources/
 src/test/java/                     tests; TestcontainersConfig starts PostgreSQL and Redis
   com/techindna/template/config/   TestcontainersConfig and test support
   com/techindna/template/controller/auth/   Auth* integration tests
-  com/techindna/template/controller/users/  UserGetTest, UserListTest and UserDeleteTest
+  com/techindna/template/controller/users/  UserGetTest, UserListTest, UserUpdateTest and UserDeleteTest
 src/test/resources/application.properties
 docs/api/api.yaml                 OpenAPI contract
 docs/cdm.canvas                   data-model canvas
@@ -132,8 +137,8 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 403
   on IP mismatch. Invalid/expired JWTs continue anonymously so protected routes can return 401.
 - The role claim is enforced per-endpoint: `SecurityConfig` gates `GET /users` with `hasRole("ADMIN")`
-  and `RBACRules` handles object-level access (for example, `GET /users/{userId}`); do not treat the
-  role as a global rule that every route checks.
+  and `RBACRules` handles object-level access (for example, `GET /users/{userId}`, and the owner-only
+  `PATCH /users/{userId}`); do not treat the role as a global rule that every route checks.
 
 ### Registration and mail
 
@@ -170,6 +175,19 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
   with `function lower(bytea) does not exist` on the common no-search request.
 - Ordering maps inline the same way: `order=desc` reverses creation-date order, anything else is
   ascending. Prefer Spring `Sort.by(...)` over a custom direction enum.
+
+### User updates
+
+- `PATCH /users/{userId}` reuses `UserService.findUser(UUID, Supplier<? extends RuntimeException>)`;
+  `getUserById`/`deleteUser` pass `NotFoundException("User not found")`, while `updateUser` passes
+  `ForbiddenException("Cannot access this resource.")` so a missing id is indistinguishable from a
+  forbidden one (403, not 404).
+- `updateUser` validates the body, loads the user, then calls `RBACRules.requireOwner` (self-only).
+  Null request fields keep the stored value, so `{}` is a successful no-op. Because validation runs
+  before the existence check, an invalid body on an unknown id returns 422 rather than 403.
+- The merge canonicalizes the username with `DataValidator.normalizeUsername` and persists via
+  `saveAndFlush` (entity dirty check). There is no username pre-check: the unique constraint surfaces
+  a duplicate as `DataIntegrityViolationException`, mapped to `409 Cannot use this username`.
 
 ### API contract and config
 
