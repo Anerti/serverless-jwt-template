@@ -1226,6 +1226,7 @@ components:
           pattern: "^[A-Z][a-zA-Z-'éèê ]{1,}$"
           description: Must start with a capital letter
       example:
+        username: jdoe
         firstName: Jonathan
         lastName: Doe
 
