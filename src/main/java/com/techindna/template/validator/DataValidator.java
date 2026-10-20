@@ -76,6 +76,7 @@ public class DataValidator {
 
     public void checkPasswordSecurityLevel(String field, String password, String label) {
         checkNullData(field, password);
+        checkStringLength(field, password, 255);
 
         if (password.length() < 12) {
             throw new UnprocessableContentException(label + " must be at least 12 characters");
