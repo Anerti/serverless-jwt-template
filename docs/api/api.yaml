@@ -48,6 +48,17 @@ paths:
                 $ref: '#/components/schemas/MessageBody'
               example:
                 message: An email has been sent to verify your account
+        '400':
+          description: Request body is missing or malformed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 400
+                error: Bad Request
+                message: Request body is missing or malformed.
+                timestamp: 2026-07-20T15:00:00Z
         '422':
           description: Validation failure
           content:
@@ -57,7 +68,7 @@ paths:
               example:
                 status: 422
                 error: Unprocessable Entity
-                message: Password must be at least 8 characters
+                message: Password must be at least 12 characters
                 timestamp: 2026-07-20T15:00:00Z
         '409':
           description: Username or email already exists
@@ -65,13 +76,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 409
-                error: Conflict
-                message: Username is already taken
-                timestamp: 2026-07-20T15:00:00Z
+              examples:
+                duplicateUsername:
+                  value:
+                    status: 409
+                    error: Conflict
+                    message: You cannot use this username
+                    timestamp: 2026-07-20T15:00:00Z
+                duplicateEmail:
+                  value:
+                    status: 409
+                    error: Conflict
+                    message: You cannot use this email address
+                    timestamp: 2026-07-20T15:00:00Z
         '500':
-          description: Failed to send verification email
+          description: Failed to send verification email or another unexpected server error
           content:
             application/json:
               schema:
@@ -79,7 +98,7 @@ paths:
               example:
                 status: 500
                 error: Internal Server Error
-                message: Failed to send verification email
+                message: Something went wrong, please try again later
                 timestamp: 2026-07-20T15:00:00Z
 
   /auth/login:
