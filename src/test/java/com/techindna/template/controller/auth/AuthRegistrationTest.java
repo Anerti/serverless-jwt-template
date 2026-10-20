@@ -20,6 +20,8 @@ import java.time.Instant;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
@@ -46,6 +48,8 @@ class AuthRegistrationTest extends TestcontainersConfig {
     private static final String USERNAME = "jane-doe";
     private static final String EMAIL = "jane.doe@example.com";
     private static final String VERIFICATION_KEY_PREFIX = "auth:verification:";
+    private static final String NAME_FORMAT_MESSAGE =
+            "%s must contain only letters, with single spaces, apostrophes, or hyphens between words";
 
     private final TestRestTemplate restTemplate;
     private final UserRepository userRepository;
@@ -255,8 +259,41 @@ class AuthRegistrationTest extends TestcontainersConfig {
 
     @Test
     void invalidFirstNameReturnsUnprocessableContent() {
-        assertUnprocessable(request(USERNAME, validPassword(), validPassword(), "jane", "Doe", EMAIL),
-                "firstName must start with a capital letter");
+        assertUnprocessable(request(USERNAME, validPassword(), validPassword(), "J4ne", "Doe", EMAIL),
+                NAME_FORMAT_MESSAGE.formatted("firstName"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Li", "jane", "McDonald", "O'Brien", "O’Brien", "Jean-Luc",
+            "de la Cruz", "Zoë", "Élodie", "Søren", "Иван"})
+    void realWorldFirstNamesAreAccepted(String firstName) {
+        ResponseEntity<MessageResponse> response = register(
+                request(USERNAME, validPassword(), validPassword(), firstName, "Doe", EMAIL));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(userRepository.findAll())
+                .singleElement()
+                .extracting(JUser::getFirstName)
+                .isEqualTo(firstName);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"Jane--Doe", "Jane  Doe", "-Jane", "Jane'", "Jane2", "Jane_Doe"})
+    void malformedFirstNamesAreRejected(String firstName) {
+        assertUnprocessable(
+                request(USERNAME, validPassword(), validPassword(), firstName, "Doe", EMAIL),
+                NAME_FORMAT_MESSAGE.formatted("firstName"));
+    }
+
+    @Test
+    void namesAreTrimmedBeforePersistence() {
+        ResponseEntity<MessageResponse> response = register(
+                request(USERNAME, validPassword(), validPassword(), "  Jane ", " Doe  ", EMAIL));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        JUser user = userRepository.findAll().getFirst();
+        assertThat(user.getFirstName()).isEqualTo("Jane");
+        assertThat(user.getLastName()).isEqualTo("Doe");
     }
 
     @Test
@@ -270,7 +307,7 @@ class AuthRegistrationTest extends TestcontainersConfig {
     @Test
     void invalidLastNameReturnsUnprocessableContent() {
         assertUnprocessable(request(USERNAME, validPassword(), validPassword(), "Jane", "D0e", EMAIL),
-                "lastName must start with a capital letter");
+                NAME_FORMAT_MESSAGE.formatted("lastName"));
     }
 
     @Test
@@ -305,6 +342,30 @@ class AuthRegistrationTest extends TestcontainersConfig {
                 request(USERNAME, validPassword(), validPassword(), "Jane", "Doe",
                         "name+tag@example.com"),
                 "Email name+tag@example.com is not valid");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"jane@mail.my-company.com", "jane@sub.123.example.com",
+            "jane_doe-1@example.io"})
+    void validEmailFormatsAreAccepted(String email) {
+        ResponseEntity<MessageResponse> response = register(
+                request(USERNAME, validPassword(), validPassword(), "Jane", "Doe", email));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(userRepository.findAll())
+                .singleElement()
+                .extracting(JUser::getEmail)
+                .isEqualTo(email);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {".jane@example.com", "jane.@example.com", "ja..ne@example.com",
+            "jane@ex_ample.com", "jane@-example.com", "jane@example-.com", "jane@example.c",
+            "jane@example"})
+    void malformedEmailsAreRejected(String email) {
+        assertUnprocessable(
+                request(USERNAME, validPassword(), validPassword(), "Jane", "Doe", email),
+                "Email " + email + " is not valid");
     }
 
     @Test
