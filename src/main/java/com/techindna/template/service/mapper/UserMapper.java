@@ -24,8 +24,8 @@ public class UserMapper {
         return JUser.builder()
                 .username(dataValidator.normalizeUsername(request.username()))
                 .password(passwordEncoder.encode(request.password()))
-                .firstName(request.firstName())
-                .lastName(request.lastName())
+                .firstName(dataValidator.normalizeName(request.firstName()))
+                .lastName(dataValidator.normalizeName(request.lastName()))
                 .email(dataValidator.normalizeEmail(request.email()))
                 .verified(false)
                 .build();

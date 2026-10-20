@@ -13,8 +13,9 @@ public class DataValidator {
     private static final int MIN_PAGE_SIZE = 1;
     private static final int MAX_PAGE_SIZE = 100;
 
-    private static final Pattern EMAIL_FORMAT = Pattern.compile("^[a-z0-9_.-]+@[a-z0-9_-]+(\\.[a-z]+)+$");
-    private static final Pattern NAME_FORMAT = Pattern.compile("^[A-Z][a-z-'éèê ]{2,}$");
+    private static final Pattern EMAIL_FORMAT = Pattern.compile(
+            "^[a-z0-9_-]+(\\.[a-z0-9_-]+)*@([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$");
+    private static final Pattern NAME_FORMAT = Pattern.compile("^[\\p{L}\\p{M}]+([ '’-][\\p{L}\\p{M}]+)*$");
     private static final Pattern USERNAME_FORMAT = Pattern.compile("^[a-zA-Z_0-9-]{2,}$");
     private static final Pattern SEARCH_FORMAT = Pattern.compile("^[0-9a-zA-Z.@_\\- éèê]*$");
 
@@ -52,6 +53,10 @@ public class DataValidator {
         return value == null ? null : value.trim().toLowerCase(Locale.ROOT);
     }
 
+    public String normalizeName(String value) {
+        return value == null ? null : value.trim();
+    }
+
     public void validateUsername(String value){
         if (value != null && !USERNAME_FORMAT.matcher(normalizeUsername(value)).matches()){
             throw new UnprocessableContentException(String.format("Username %s is invalid", value));
@@ -65,8 +70,8 @@ public class DataValidator {
     }
 
     public void validateName(String field, String value) {
-        if (value != null && !NAME_FORMAT.matcher(value).matches()) {
-            throw new UnprocessableContentException(String.format("%s must start with a capital letter and contain only letters, hyphens, apostrophes, and spaces", field));
+        if (value != null && !NAME_FORMAT.matcher(normalizeName(value)).matches()) {
+            throw new UnprocessableContentException(String.format("%s must contain only letters, with single spaces, apostrophes, or hyphens between words", field));
         }
     }
 

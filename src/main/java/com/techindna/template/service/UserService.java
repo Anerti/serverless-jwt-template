@@ -60,8 +60,10 @@ public class UserService {
 
         String username = dataValidator.normalizeUsername(request.username());
         user.setUsername(username == null ? user.getUsername() : username);
-        user.setFirstName(request.firstName() == null ? user.getFirstName() : request.firstName());
-        user.setLastName(request.lastName() == null ? user.getLastName() : request.lastName());
+        String firstName = dataValidator.normalizeName(request.firstName());
+        String lastName = dataValidator.normalizeName(request.lastName());
+        user.setFirstName(firstName == null ? user.getFirstName() : firstName);
+        user.setLastName(lastName == null ? user.getLastName() : lastName);
 
         try {
             return userMapper.toResponse(userRepository.saveAndFlush(user));
