@@ -143,10 +143,13 @@ values, so an empty body is a successful no-op. The username is trimmed and lowe
 persistence and must remain unique, so a duplicate returns 409. The user lookup behind the update
 hides non-existent ids, so an unknown `userId` returns 403 rather than 404.
 
-Registration rules include a password of at least 12 characters containing uppercase, lowercase,
+Registration rules include a password of 12–255 characters containing uppercase, lowercase,
 digit, and special characters; username length 2–50; first/last name maximum 100; and email maximum
 100. Username and email are trimmed and lowercased before persistence. Email validation allows
-multi-label domains (for example `name@sub.example.co.uk`) but currently rejects `+` addresses.
+multi-label domains (for example `name@sub.example.co.uk` or `name@mail.my-company.com`), rejects
+malformed dots in the local part, and rejects `+` addresses. First and last names are trimmed and
+accept letters in any script with single spaces, apostrophes, or hyphens between words (for example
+`O'Brien`, `de la Cruz`, `Zoë`); capitalization is not enforced.
 
 The verification email includes the user's name, username, email, verification link, remote client
 address, user-agent string, and persisted creation timestamp. `clientIp` is populated from

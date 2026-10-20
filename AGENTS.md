@@ -127,7 +127,12 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Registration validation explicitly checks required fields and maximum lengths before format checks.
 - Registration trims and lowercases username/email with `Locale.ROOT` before persistence. Preserve this
   canonicalization when changing identity checks or storage.
-- The email format currently accepts multi-label domains and does not accept `+` in the local part.
+- The email format accepts multi-label domains (hyphenated and numeric labels allowed, TLD of two or
+  more letters), rejects leading, trailing, or consecutive dots in the local part, and does not accept
+  `+` in the local part.
+- Names (`firstName`, `lastName`) are trimmed before validation and persistence and accept letters in
+  any script, with single spaces, apostrophes, or hyphens between words; there is no capital-letter
+  rule.
 
 ### Errors and security
 

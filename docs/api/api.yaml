@@ -1237,13 +1237,13 @@ components:
         firstName:
           type: string
           maxLength: 100
-          pattern: "^[A-Z][a-zA-Z-'éèê ]{1,}$"
-          description: Must start with a capital letter
+          pattern: '^[\p{L}\p{M}]+([ ''’-][\p{L}\p{M}]+)*$'
+          description: Letters in any script, with single spaces, apostrophes, or hyphens between words; surrounding whitespace is trimmed
         lastName:
           type: string
           maxLength: 100
-          pattern: "^[A-Z][a-zA-Z-'éèê ]{1,}$"
-          description: Must start with a capital letter
+          pattern: '^[\p{L}\p{M}]+([ ''’-][\p{L}\p{M}]+)*$'
+          description: Letters in any script, with single spaces, apostrophes, or hyphens between words; surrounding whitespace is trimmed
       example:
         username: jdoe
         firstName: Jonathan
