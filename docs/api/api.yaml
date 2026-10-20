@@ -48,6 +48,17 @@ paths:
                 $ref: '#/components/schemas/MessageBody'
               example:
                 message: An email has been sent to verify your account
+        '400':
+          description: Request body is missing or malformed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorBody'
+              example:
+                status: 400
+                error: BAD REQUEST
+                message: Request body is missing or malformed.
+                timestamp: 2026-07-20T15:00:00Z
         '422':
           description: Validation failure
           content:
@@ -56,8 +67,8 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 422
-                error: Unprocessable Entity
-                message: Password must be at least 8 characters
+                error: UNPROCESSABLE CONTENT
+                message: Password must be at least 12 characters
                 timestamp: 2026-07-20T15:00:00Z
         '409':
           description: Username or email already exists
@@ -65,21 +76,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
-              example:
-                status: 409
-                error: Conflict
-                message: Username is already taken
-                timestamp: 2026-07-20T15:00:00Z
+              examples:
+                duplicateUsername:
+                  value:
+                    status: 409
+                    error: CONFLICT
+                    message: You cannot use this username
+                    timestamp: 2026-07-20T15:00:00Z
+                duplicateEmail:
+                  value:
+                    status: 409
+                    error: CONFLICT
+                    message: You cannot use this email address
+                    timestamp: 2026-07-20T15:00:00Z
         '500':
-          description: Failed to send verification email
+          description: Failed to send verification email or another unexpected server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 500
-                error: Internal Server Error
-                message: Failed to send verification email
+                error: INTERNAL SERVER ERROR
+                message: Something went wrong, please try again later
                 timestamp: 2026-07-20T15:00:00Z
 
   /auth/login:
@@ -120,28 +139,28 @@ paths:
                   summary: Neither username nor email provided
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: Username or email is required and cannot be blank
                     timestamp: 2026-07-20T15:00:00Z
                 invalidEmail:
                   summary: Email format invalid
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: Email not-an-email is not valid
                     timestamp: 2026-07-20T15:00:00Z
                 invalidUsername:
                   summary: Username format invalid
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: Username a is invalid
                     timestamp: 2026-07-20T15:00:00Z
                 blankPassword:
                   summary: Password missing or blank
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: password is required and cannot be blank
                     timestamp: 2026-07-20T15:00:00Z
         '401':
@@ -155,7 +174,7 @@ paths:
                   summary: Unknown user or wrong password
                   value:
                     status: 401
-                    error: Unauthorized
+                    error: UNAUTHORIZED
                     message: Invalid username/email or password.
                     timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -169,21 +188,21 @@ paths:
                   summary: Account locked due to too many failed attempts
                   value:
                     status: 403
-                    error: Forbidden
+                    error: FORBIDDEN
                     message: This account has been locked after too many unsuccessful sign-in attempts. Request an account-unlock link to regain access.
                     timestamp: 2026-07-20T15:00:00Z
                 accountNotVerified:
                   summary: Account not yet verified
                   value:
                     status: 403
-                    error: Forbidden
+                    error: FORBIDDEN
                     message: Verify your email address before signing in.
                     timestamp: 2026-07-20T15:00:00Z
                 hostBanned:
                   summary: Client's host is banned from this account
                   value:
                     status: 403
-                    error: Forbidden
+                    error: FORBIDDEN
                     message: Host 203.0.113.42 is banned from accessing this account
                     timestamp: 2026-07-20T15:00:00Z
 
@@ -257,14 +276,14 @@ paths:
                   summary: Email format invalid
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: Email must be a valid email address
                     timestamp: 2026-07-20T15:00:00Z
                 invalidFlow:
                   summary: Unknown flow value
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: Unknown flow value
                     timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -275,7 +294,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: No pending verification found for this email
                 timestamp: 2026-07-20T15:00:00Z
         '500':
@@ -286,7 +305,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 500
-                error: Internal Server Error
+                error: INTERNAL SERVER ERROR
                 message: Failed to send verification email
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -321,7 +340,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Invalid credentials
                 timestamp: 2026-07-20T15:00:00Z
         '422':
@@ -335,21 +354,21 @@ paths:
                   summary: Password too short
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: New password must be at least 12 characters
                     timestamp: 2026-07-20T15:00:00Z
                 passwordsDoNotMatch:
                   summary: Passwords do not match
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: Passwords do not match
                     timestamp: 2026-07-20T15:00:00Z
                 passwordReused:
                   summary: Password reused
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: New password must differ from the current password
                     timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -360,7 +379,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: Account has not been verified
                 timestamp: 2026-07-20T15:00:00Z
         '500':
@@ -371,7 +390,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 500
-                error: Internal Server Error
+                error: INTERNAL SERVER ERROR
                 message: Failed to send password-change notification email
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -406,7 +425,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Invalid credentials
                 timestamp: 2026-07-20T15:00:00Z
         '422':
@@ -417,7 +436,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 422
-                error: Unprocessable Entity
+                error: UNPROCESSABLE CONTENT
                 message: New email must be a valid email address
                 timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -428,7 +447,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: Account has not been verified
                 timestamp: 2026-07-20T15:00:00Z
         '409':
@@ -439,7 +458,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 409
-                error: Conflict
+                error: CONFLICT
                 message: This email address is already in use
                 timestamp: 2026-07-20T15:00:00Z
         '500':
@@ -450,7 +469,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 500
-                error: Internal Server Error
+                error: INTERNAL SERVER ERROR
                 message: Failed to send verification email
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -494,14 +513,14 @@ paths:
                   summary: Account not found or not locked
                   value:
                     status: 403
-                    error: Forbidden
+                    error: FORBIDDEN
                     message: Account not locked
                     timestamp: 2026-07-20T15:00:00Z
                 hostBanned:
                   summary: Requesting host is banned
                   value:
                     status: 403
-                    error: Forbidden
+                    error: FORBIDDEN
                     message: Host <ip> is banned from accessing this account
                     timestamp: 2026-07-20T15:00:00Z
         '422':
@@ -515,21 +534,21 @@ paths:
                   summary: Email missing or blank
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: email is required and cannot be blank
                     timestamp: 2026-07-20T15:00:00Z
                 emailTooLong:
                   summary: Email exceeds 100 characters
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: email must not exceed 100 characters
                     timestamp: 2026-07-20T15:00:00Z
                 emailInvalid:
                   summary: Email format invalid
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: Email <value> is not valid
                     timestamp: 2026-07-20T15:00:00Z
         '500':
@@ -540,7 +559,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 500
-                error: Internal Server Error
+                error: INTERNAL SERVER ERROR
                 message: Failed to send verification email
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -604,7 +623,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Invalid or expired token
                 timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -615,7 +634,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: Account is locked or inactive. Please request account access restoration to continue.
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -652,7 +671,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Invalid or expired token
                 timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -666,14 +685,14 @@ paths:
                   summary: Account locked or inactive
                   value:
                     status: 403
-                    error: Forbidden
+                    error: FORBIDDEN
                     message: Account is locked or inactive. Please request account access restoration to continue.
                     timestamp: 2026-07-20T15:00:00Z
                 accountNotVerified:
                   summary: Account not yet verified
                   value:
                     status: 403
-                    error: Forbidden
+                    error: FORBIDDEN
                     message: Verify your email address before signing in.
                     timestamp: 2026-07-20T15:00:00Z
 
@@ -712,7 +731,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Invalid or expired token
                 timestamp: 2026-07-20T15:00:00Z
         '409':
@@ -723,7 +742,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 409
-                error: Conflict
+                error: CONFLICT
                 message: This email address is already in use
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -805,7 +824,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Missing or invalid authentication token
                 timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -816,7 +835,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: Insufficient privileges.
                 timestamp: 2026-07-20T15:00:00Z
         '400':
@@ -827,7 +846,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 400
-                error: Bad Request
+                error: BAD REQUEST
                 message: Invalid pagination parameters
                 timestamp: 2026-07-20T15:00:00Z
         '422':
@@ -841,14 +860,14 @@ paths:
                   summary: Search exceeds 100 characters
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: search must not exceed 100 characters
                     timestamp: 2026-07-20T15:00:00Z
                 searchInvalidCharacters:
                   summary: Search contains disallowed characters
                   value:
                     status: 422
-                    error: Unprocessable Entity
+                    error: UNPROCESSABLE CONTENT
                     message: "Search may only contain letters, digits, dot, @, underscore, hyphen, space, and éèê"
                     timestamp: 2026-07-20T15:00:00Z
 
@@ -881,7 +900,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Missing or invalid authentication token
                 timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -892,7 +911,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: Cannot access this resource.
                 timestamp: 2026-07-20T15:00:00Z
         '404':
@@ -903,7 +922,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 404
-                error: Not Found
+                error: NOT FOUND
                 message: User not found
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -941,7 +960,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Missing or invalid authentication token
                 timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -952,7 +971,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: Insufficient privileges to access this resource
                 timestamp: 2026-07-20T15:00:00Z
         '409':
@@ -963,7 +982,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 409
-                error: Conflict
+                error: CONFLICT
                 message: Cannot use this username
                 timestamp: 2026-07-20T15:00:00Z
         '422':
@@ -974,7 +993,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 422
-                error: Unprocessable Entity
+                error: UNPROCESSABLE CONTENT
                 message: Username must start with a letter and contain only letters, digits, underscores, and hyphens
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -1010,7 +1029,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 401
-                error: Unauthorized
+                error: UNAUTHORIZED
                 message: Authentication required.
                 timestamp: 2026-07-20T15:00:00Z
         '403':
@@ -1021,7 +1040,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 403
-                error: Forbidden
+                error: FORBIDDEN
                 message: Cannot access this resource.
                 timestamp: 2026-07-20T15:00:00Z
         '404':
@@ -1032,7 +1051,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 404
-                error: Not Found
+                error: NOT FOUND
                 message: User not found
                 timestamp: 2026-07-20T15:00:00Z
         '500':
@@ -1043,7 +1062,7 @@ paths:
                 $ref: '#/components/schemas/ErrorBody'
               example:
                 status: 500
-                error: Internal Server Error
+                error: INTERNAL SERVER ERROR
                 message: Failed to send account-deletion notification email
                 timestamp: 2026-07-20T15:00:00Z
 
@@ -1218,13 +1237,13 @@ components:
         firstName:
           type: string
           maxLength: 100
-          pattern: "^[A-Z][a-zA-Z-'éèê ]{1,}$"
-          description: Must start with a capital letter
+          pattern: '^[\p{L}\p{M}]+([ ''’-][\p{L}\p{M}]+)*$'
+          description: Letters in any script, with single spaces, apostrophes, or hyphens between words; surrounding whitespace is trimmed
         lastName:
           type: string
           maxLength: 100
-          pattern: "^[A-Z][a-zA-Z-'éèê ]{1,}$"
-          description: Must start with a capital letter
+          pattern: '^[\p{L}\p{M}]+([ ''’-][\p{L}\p{M}]+)*$'
+          description: Letters in any script, with single spaces, apostrophes, or hyphens between words; surrounding whitespace is trimmed
       example:
         username: jdoe
         firstName: Jonathan

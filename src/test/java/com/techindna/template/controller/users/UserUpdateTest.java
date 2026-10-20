@@ -321,13 +321,30 @@ class UserUpdateTest extends TestcontainersConfig {
         ResponseEntity<String> response =
                 patchRaw(
                         user.getId().toString(),
-                        new UpdateUserRequest(null, "john", null),
+                        new UpdateUserRequest(null, "J0hn", null),
                         tokenFor(user));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
         assertThat(response.getBody())
-                .contains("firstName must start with a capital letter");
+                .contains(
+                        "firstName must contain only letters, with single spaces, apostrophes, or hyphens between words");
         assertThat(reload(user).getFirstName()).isEqualTo("Jane");
+    }
+
+    @Test
+    void lowercaseAndPaddedNamesAreAcceptedAndTrimmed() {
+        JUser user = saveUser("jane", "jane@example.com", UserRole.CUSTOMER);
+
+        ResponseEntity<String> response =
+                patchRaw(
+                        user.getId().toString(),
+                        new UpdateUserRequest(null, "  maría ", " de la Cruz  "),
+                        tokenFor(user));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JUser updated = reload(user);
+        assertThat(updated.getFirstName()).isEqualTo("maría");
+        assertThat(updated.getLastName()).isEqualTo("de la Cruz");
     }
 
     @Test
@@ -351,11 +368,13 @@ class UserUpdateTest extends TestcontainersConfig {
         ResponseEntity<String> response =
                 patchRaw(
                         user.getId().toString(),
-                        new UpdateUserRequest(null, null, "doe"),
+                        new UpdateUserRequest(null, null, "D0e"),
                         tokenFor(user));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
-        assertThat(response.getBody()).contains("lastName must start with a capital letter");
+        assertThat(response.getBody())
+                .contains(
+                        "lastName must contain only letters, with single spaces, apostrophes, or hyphens between words");
         assertThat(reload(user).getLastName()).isEqualTo("Doe");
     }
 

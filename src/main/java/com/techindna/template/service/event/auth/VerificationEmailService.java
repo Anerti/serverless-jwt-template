@@ -11,7 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -55,7 +54,7 @@ public class VerificationEmailService {
         try {
             emailService.sendMail(
                     new EmailDetails(template, user.getEmail(), subject, body, variables));
-        } catch (MailException e) {
+        } catch (RuntimeException e) {
             verificationTokenService.delete(token);
             throw e;
         }

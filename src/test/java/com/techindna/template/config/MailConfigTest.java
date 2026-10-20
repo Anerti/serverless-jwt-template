@@ -33,6 +33,9 @@ class MailConfigTest extends TestcontainersConfig {
         Properties props = sender.getJavaMailProperties();
         assertThat(props.getProperty("mail.smtp.auth")).isEqualTo("true");
         assertThat(props.getProperty("mail.smtp.starttls.enable")).isEqualTo("true");
+        assertThat(props.getProperty("mail.smtp.connectiontimeout")).isEqualTo("5000");
+        assertThat(props.getProperty("mail.smtp.timeout")).isEqualTo("5000");
+        assertThat(props.getProperty("mail.smtp.writetimeout")).isEqualTo("5000");
 
         assertThat(Session.getInstance(props)).isNotNull();
     }
