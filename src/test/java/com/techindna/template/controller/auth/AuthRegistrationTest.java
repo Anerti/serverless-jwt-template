@@ -234,6 +234,13 @@ class AuthRegistrationTest extends TestcontainersConfig {
     }
 
     @Test
+    void overlongPasswordReturnsUnprocessableContent() {
+        String longPassword = validPassword() + "a".repeat(256 - validPassword().length());
+        assertUnprocessable(request(USERNAME, longPassword, longPassword, "Jane", "Doe", EMAIL),
+                "password must not exceed 255 characters");
+    }
+
+    @Test
     void blankConfirmationPasswordReturnsUnprocessableContent() {
         assertUnprocessable(request(USERNAME, validPassword(), "", "Jane", "Doe", EMAIL),
                 "confirmPassword is required and cannot be blank");
@@ -329,6 +336,16 @@ class AuthRegistrationTest extends TestcontainersConfig {
     }
 
     @Test
+    void duplicateUsernameContainingEmailReturnsUsernameConflict() {
+        saveExistingUser("email-admin", "existing@example.com");
+
+        ResponseEntity<String> response = registerError(
+                request("email-admin", validPassword(), validPassword(), "Jane", "Doe", EMAIL));
+
+        assertConflict(response, "You cannot use this username");
+    }
+
+    @Test
     void mixedCaseUsernameAndEmailAreNormalizedBeforePersistence() {
         saveExistingUser("jane-doe", "jane.doe@example.com");
 
@@ -349,6 +366,19 @@ class AuthRegistrationTest extends TestcontainersConfig {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody()).contains("Something went wrong");
+        assertThat(userRepository.count()).isZero();
+        assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
+    }
+
+    @Test
+    void unexpectedEmailFailureRemovesVerificationTokenAndRollsBackRegistration() {
+        doThrow(new IllegalStateException("Template rendering failed"))
+                .when(emailService)
+                .sendMail(any(EmailDetails.class));
+
+        ResponseEntity<String> response = registerError(validRequest());
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(userRepository.count()).isZero();
         assertThat(redis.keys(VERIFICATION_KEY_PREFIX + "*")).isEmpty();
     }
