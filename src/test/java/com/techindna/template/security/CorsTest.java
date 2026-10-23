@@ -44,6 +44,17 @@ class CorsTest extends TestcontainersConfig {
         assertThat(response.getHeaders().getAccessControlAllowOrigin()).isNull();
     }
 
+    @Test
+    void retryAfterIsExposedToBrowsers() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setOrigin(ALLOWED_ORIGIN);
+
+        ResponseEntity<String> response =
+                restTemplate.exchange("/syn", HttpMethod.GET, new HttpEntity<>(headers), String.class);
+
+        assertThat(response.getHeaders().getAccessControlExposeHeaders()).contains(HttpHeaders.RETRY_AFTER);
+    }
+
     private ResponseEntity<String> preflight(String origin, String method) {
         HttpHeaders headers = new HttpHeaders();
         headers.setOrigin(origin);
