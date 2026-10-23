@@ -42,6 +42,9 @@ Implemented:
   internal errors. Registration, change-password, and account deletion roll back when the email send
   fails.
 - PostgreSQL persistence model and repository layer
+- Per-IP rate limiting on every endpoint except `GET /syn`, with Bucket4j backed by Redis and one
+  bucket per severity tier (critical, sensitive, standard); `429` with `ErrorBody` and `Retry-After`
+  when exceeded
 
 Not implemented:
 
@@ -103,6 +106,7 @@ src/test/java/                     tests; TestcontainersConfig starts PostgreSQL
   com/techindna/template/config/   TestcontainersConfig and test support
   com/techindna/template/controller/auth/   Auth* integration tests
   com/techindna/template/controller/users/  UserGetTest, UserListTest, UserUpdateTest and UserDeleteTest
+  com/techindna/template/security/          RateLimitTest and ClientIpSpoofingTest
 src/test/resources/application.properties
 docs/api/api.yaml                 OpenAPI contract
 docs/cdm.canvas                   data-model canvas
@@ -192,7 +196,33 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
   before the existence check, an invalid body on an unknown id returns 422 rather than 403.
 - The merge canonicalizes the username with `DataValidator.normalizeUsername` and persists via
   `saveAndFlush` (entity dirty check). There is no username pre-check: the unique constraint surfaces
-  a duplicate as `DataIntegrityViolationException`, mapped to `409 Cannot use this username`.
+  a duplicate as `DataIntegrityViolationException`, mapped to `409### Rate limiting
+
+- `RateLimitFilter` (in the security chain before `JwtAuthenticationFilter`) limits every route
+  except `GET /syn` through `RateLimitService`, which owns the Bucket4j `ProxyManager` on a Lettuce
+  connection taken from Spring's `LettuceConnectionFactory` (standalone Redis only).
+- Tiers are matched in order, first match wins: `critical` = `POST /auth/**` (credential checks and
+  email-sending actions), `sensitive` = `GET /auth/**`, `PATCH /users/**`, `DELETE /users/**`,
+  `standard` = everything else, including unknown routes. Each tier has its own bucket per IP, keyed
+  `ratelimit:<tier>:ip:<ip>`, and keys expire once the bucket would be full again. New endpoints
+  fall into `standard` unless a tier matcher is updated.
+- Limits come from `app.rate-limit.{critical,sensitive,standard}-per-minute`; test properties set
+  them high because all test classes share one Redis and one client IP. A Redis failure fails open
+  and logs a warning.
+- Future per-plan limits should reuse `RateLimitService.tryConsume` with a user-scoped key and the
+  plan's `BucketConfiguration`.
+
+### Client IP
+
+- `ClientIpAddressResolver` returns `getRemoteAddr()`. Forwarding headers are trusted only through
+  Tomcat's `RemoteIpValve` (`server.forward-headers-strategy=native`), which reads
+  `X-Forwarded-For` only when the direct peer matches `server.tomcat.remoteip.internal-proxies`
+  (private and loopback ranges by default). Never parse forwarding headers in application code.
+- Behind Cloudflare or another public proxy, set `internal-proxies` to its ranges and, if needed,
+  `server.tomcat.remoteip.remote-ip-header` (for example `CF-Connecting-IP`).
+- Rate limiting and JWT IP binding both use the resolver.
+
+an's `BucketConfiguration`.
 
 ### API contract and config
 
