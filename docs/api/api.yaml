@@ -1098,7 +1098,8 @@ components:
   responses:
     TooManyRequests:
       description: >-
-        Rate limit exceeded. Every endpoint except GET /syn is limited per client IP, with one
+        Rate limit exceeded. Every endpoint except GET /syn is limited per client IP (per /64 prefix for
+        IPv6), with one
         bucket per tier: critical (POST /auth/**, default 10 requests/minute), sensitive
         (GET /auth/**, PATCH and DELETE /users/**, default 30/minute) and standard (everything
         else, default 120/minute). Configured by app.rate-limit.{critical,sensitive,standard}-per-minute.

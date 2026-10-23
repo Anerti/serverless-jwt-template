@@ -1,10 +1,10 @@
 package com.techindna.template.security;
 
+import static com.techindna.template.config.RateLimitConfig.perMinute;
 import static org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher.pathPattern;
 
 import com.techindna.template.exception.ErrorBody;
 import com.techindna.template.service.redis.RateLimitService;
-import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.ConsumptionProbe;
 import jakarta.annotation.Nonnull;
 import jakarta.servlet.FilterChain;
@@ -12,7 +12,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.time.Duration;
+import java.net.InetAddress;
+import java.util.HexFormat;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         ConsumptionProbe probe;
         try {
             probe = rateLimitService.tryConsume(
-                    tier.name() + ":ip:" + clientIpAddressResolver.resolve(request),
+                    tier.name() + ":ip:" + clientKey(clientIpAddressResolver.resolve(request)),
                     perMinute(tier.perMinute()));
         } catch (RuntimeException ex) {
             log.warn("Rate limit check failed, allowing request", ex);
@@ -94,10 +95,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 : new Tier("standard", standardPerMinute);
     }
 
-    private static BucketConfiguration perMinute(long requests) {
-        return BucketConfiguration.builder()
-                .addLimit(limit -> limit.capacity(requests).refillGreedy(requests, Duration.ofMinutes(1)))
-                .build();
+    static String clientKey(String ip) {
+        byte[] address = InetAddress.ofLiteral(ip).getAddress();
+        return address.length == 16 ? HexFormat.of().formatHex(address, 0, 8) + "/64" : ip;
     }
 
     private record Tier(String name, long perMinute) {}

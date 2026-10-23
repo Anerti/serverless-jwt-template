@@ -86,6 +86,7 @@ copying Boot 3 examples without checking them.
 build.gradle
 settings.gradle
 src/main/java/com/techindna/template/
+  config/                          RateLimitConfig (Bucket4j) and CorsConfig
   controller/                       HTTP endpoints (AuthController, SyncController, UserController)
   dto/                             request/response records (auth payloads under dto/auth)
   entity/                          domain types and enums (entity/enums, entity/email)
@@ -106,7 +107,7 @@ src/test/java/                     tests; TestcontainersConfig starts PostgreSQL
   com/techindna/template/config/   TestcontainersConfig and test support
   com/techindna/template/controller/auth/   Auth* integration tests
   com/techindna/template/controller/users/  UserGetTest, UserListTest, UserUpdateTest and UserDeleteTest
-  com/techindna/template/security/          RateLimitTest and ClientIpSpoofingTest
+  com/techindna/template/security/          RateLimitTest, RateLimitFilterTest, ClientIpSpoofingTest, CorsTest
 src/test/resources/application.properties
 docs/api/api.yaml                 OpenAPI contract
 docs/cdm.canvas                   data-model canvas
@@ -143,6 +144,9 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
 - Application errors should use the shared `ErrorBody` envelope; do not return raw error strings or
   Spring's default error JSON.
 - Explicitly permit public routes in `SecurityConfig`; the chain otherwise requires authentication.
+- CORS is configured in `config/CorsConfig` and enabled in the security chain with `.cors(...)`.
+  Allowed origins come from the comma-separated `app.cors.allowed-origins`; credentials are allowed,
+  so never set it to `*`. Add a new HTTP method to the allowed list when an endpoint needs it.
 - JWT claims are used for identity/role data. The filter binds a token to an IP and responds with 403
   on IP mismatch. Invalid/expired JWTs continue anonymously so protected routes can return 401.
 - The role claim is enforced per-endpoint: `SecurityConfig` gates `GET /users` with `hasRole("ADMIN")`
@@ -196,19 +200,24 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
   before the existence check, an invalid body on an unknown id returns 422 rather than 403.
 - The merge canonicalizes the username with `DataValidator.normalizeUsername` and persists via
   `saveAndFlush` (entity dirty check). There is no username pre-check: the unique constraint surfaces
-  a duplicate as `DataIntegrityViolationException`, mapped to `409### Rate limiting
+  a duplicate as `DataIntegrityViolationException`, mapped to `409 Cannot use this username`.
+
+### Rate limiting
 
 - `RateLimitFilter` (in the security chain before `JwtAuthenticationFilter`) limits every route
-  except `GET /syn` through `RateLimitService`, which owns the Bucket4j `ProxyManager` on a Lettuce
-  connection taken from Spring's `LettuceConnectionFactory` (standalone Redis only).
+  except `GET /syn` through `RateLimitService`, which uses the Bucket4j `ProxyManager` bean defined in
+  `config/RateLimitConfig` on a Lettuce connection taken from Spring's `LettuceConnectionFactory`
+  (standalone Redis only).
 - Tiers are matched in order, first match wins: `critical` = `POST /auth/**` (credential checks and
   email-sending actions), `sensitive` = `GET /auth/**`, `PATCH /users/**`, `DELETE /users/**`,
   `standard` = everything else, including unknown routes. Each tier has its own bucket per IP, keyed
-  `ratelimit:<tier>:ip:<ip>`, and keys expire once the bucket would be full again. New endpoints
-  fall into `standard` unless a tier matcher is updated.
+  `ratelimit:<tier>:ip:<ip>` (IPv6 clients are keyed by their /64 prefix, `<prefix>/64`, so
+  rotating addresses inside one allocation shares a bucket), and keys expire once the bucket would
+  be full again. New endpoints fall into `standard` unless a tier matcher is updated.
 - Limits come from `app.rate-limit.{critical,sensitive,standard}-per-minute`; test properties set
   them high because all test classes share one Redis and one client IP. A Redis failure fails open
-  and logs a warning.
+  and logs a warning; `spring.data.redis.timeout` (500ms) bounds how long each request waits
+  before failing open, instead of Lettuce's 60-second default.
 - Future per-plan limits should reuse `RateLimitService.tryConsume` with a user-scoped key and the
   plan's `BucketConfiguration`.
 
@@ -222,15 +231,14 @@ Liquibase to run it automatically. Ignore generated `build/` and `.gradle/` dire
   `server.tomcat.remoteip.remote-ip-header` (for example `CF-Connecting-IP`).
 - Rate limiting and JWT IP binding both use the resolver.
 
-an's `BucketConfiguration`.
-
 ### API contract and config
 
 - Update `docs/api/api.yaml` whenever implemented API behavior or request/response shapes change.
 - Root `.env` is an optional Spring properties file imported by `application.properties`; it is
   git-ignored. Do not print, commit, or copy its secrets.
-- Local runs require PostgreSQL, Redis, `app.jwt.secret`, and `app.base-url`. SMTP credentials are
-  needed for actual registration emails. Keep `application.properties` and test properties secret-free.
+- Local runs require PostgreSQL, Redis, `app.jwt.secret`, `app.base-url`, and
+  `app.cors.allowed-origins` (set in `.env`). SMTP credentials are needed for actual registration
+  emails. Keep `application.properties` and test properties secret-free.
 - Tests use `src/test/resources/application.properties`; `TestcontainersConfig` supplies PostgreSQL,
   Redis, and a freshly generated JWT key.
 

@@ -2,20 +2,12 @@ package com.techindna.template.security;
 
 import com.techindna.template.exception.ErrorBody;
 import com.techindna.template.security.jwt.JwtAuthenticationFilter;
-import io.github.bucket4j.distributed.ExpirationAfterWriteStrategy;
-import io.github.bucket4j.distributed.proxy.ProxyManager;
-import io.github.bucket4j.redis.lettuce.Bucket4jLettuce;
-import io.lettuce.core.RedisClient;
-import io.lettuce.core.codec.ByteArrayCodec;
-import io.lettuce.core.codec.RedisCodec;
-import io.lettuce.core.codec.StringCodec;
 import jakarta.servlet.DispatcherType;
-import java.time.Duration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -35,23 +27,13 @@ public class SecurityConfig {
     }
 
     @Bean
-    public ProxyManager<String> rateLimitBuckets(LettuceConnectionFactory connectionFactory) {
-        RedisClient client = (RedisClient) connectionFactory.getRequiredNativeClient();
-        return Bucket4jLettuce.casBasedBuilder(
-                        client.connect(RedisCodec.of(StringCodec.UTF8, ByteArrayCodec.INSTANCE)))
-                .expirationAfterWrite(
-                        ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(
-                                Duration.ofSeconds(10)))
-                .build();
-    }
-
-    @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthFilter,
             RateLimitFilter rateLimitFilter)
             throws Exception {
         http.csrf(AbstractHttpConfigurer::disable)
+                .cors(Customizer.withDefaults())
                 .sessionManagement(
                         session ->
                                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
