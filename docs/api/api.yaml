@@ -40,6 +40,8 @@ paths:
               $ref: '#/components/schemas/RegisterInput'
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '202':
           description: Validation passed, verification link sent by email
           content:
@@ -120,6 +122,8 @@ paths:
               $ref: '#/components/schemas/LoginInput'
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '202':
           description: Credentials validated, verification link sent by email
           content:
@@ -238,6 +242,8 @@ paths:
             registration verification.
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '202':
           description: Verification email regenerated and sent
           content:
@@ -324,6 +330,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ChangePasswordInput'
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: Password changed successfully
           content:
@@ -409,6 +417,8 @@ paths:
             schema:
               $ref: '#/components/schemas/ChangeEmailInput'
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '202':
           description: Credentials validated, verification link sent to the new email
           content:
@@ -491,6 +501,8 @@ paths:
               $ref: '#/components/schemas/UnlockAccountInput'
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '202':
           description: Verification link sent by email to unlock the account
           content:
@@ -583,6 +595,8 @@ paths:
           description: UUID verification token sent by email
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: Confirmation page
           content:
@@ -609,6 +623,8 @@ paths:
           description: UUID registration verification token sent by email
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: Registration email verified
           content:
@@ -657,6 +673,8 @@ paths:
           description: UUID login verification token sent by email
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: Sign-in confirmed
           content:
@@ -715,6 +733,8 @@ paths:
           description: UUID change-email verification token sent to the new address
       security: []
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: Email address changed
           content:
@@ -803,6 +823,8 @@ paths:
             maximum: 100
           description: Page size
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: Paginated user list
           content:
@@ -886,6 +908,8 @@ paths:
             type: string
             format: uuid
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: User found
           content:
@@ -946,6 +970,8 @@ paths:
             schema:
               $ref: '#/components/schemas/UpdateUserInput'
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '200':
           description: User updated
           content:
@@ -1019,6 +1045,8 @@ paths:
             type: string
             format: uuid
       responses:
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
         '204':
           description: User deleted
         '401':
@@ -1067,6 +1095,32 @@ paths:
                 timestamp: 2026-07-20T15:00:00Z
 
 components:
+  responses:
+    TooManyRequests:
+      description: >-
+        Rate limit exceeded. Every endpoint except GET /syn is limited per client IP (per /64 prefix for
+        IPv6), with one
+        bucket per tier: critical (POST /auth/**, default 10 requests/minute), sensitive
+        (GET /auth/**, PATCH and DELETE /users/**, default 30/minute) and standard (everything
+        else, default 120/minute). Configured by app.rate-limit.{critical,sensitive,standard}-per-minute.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorBody'
+          examples:
+            rateLimited:
+              summary: Too many requests from this IP
+              value:
+                status: 429
+                error: TOO MANY REQUESTS
+                message: Too many requests. Please try again later.
+                timestamp: 2026-07-20T15:00:00Z
+
   securitySchemes:
     bearerAuth:
       type: http
